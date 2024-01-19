@@ -1,0 +1,1002 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "description": "A radial / line combo chart that shows Temperature vs Energy Consumption for the given year. Focus can be shifted to a given week via mouseover. The data is completely fictional and the visual was inspired by the Sunny Edinburgh project.",
+  "usermeta": {
+    "developedBy": "Madison Giammaria",
+    "LinkedIn": "https://www.linkedin.com/in/madison-giammaria-58463b33",
+    "email": "giammariam@gmail.com",
+    "inspiration": "https://sunny-edi.herokuapp.com/"
+  },
+  "title": {
+    "text": "Temperature (°C) vs Energy Consumption (kWh)",
+    "anchor": "middle",
+    "orient": "top",
+    "fontStyle": {"value": "italic"},
+    "font": {"value": "Segoe UI"},
+    "fontSize": {"signal": "isValid(hoverWeek) ? 0 : 20"},
+    "fontWeight": "100",
+    "color": {"signal": "isValid(hoverWeek) ? backgroundRGB : lightColor"},
+    "offset": -30
+  },
+  "width": 900,
+  "padding": 10,
+  "signals": [
+    {
+      "name": "monthAxisRadius",
+      "description": "radius for the month axis domain",
+      "init": "min(width,height)/2.3"
+    },
+    {
+      "name": "weekAxisRadius",
+      "description": "radius for the week axis domain",
+      "init": "monthAxisRadius-8"
+    },
+    {
+      "name": "dayEnergyAxisRadius",
+      "description": "radius for the energy consumption line (text) marks",
+      "init": "weekAxisRadius-6"
+    },
+    {
+      "name": "dayTempAxisRadius",
+      "description": "radius for the day temperature circles (text) marks",
+      "init": "dayEnergyAxisRadius-17.5"
+    },
+    {
+      "name": "xAxisOuterPaddingPercentage",
+      "description": "percentage of padding between x-axis and day temp text marks",
+      "value": 0.015
+    },
+    {
+      "name": "lightColor",
+      "description": "light color for theme as hex value",
+      "value": "#EEE"
+    },
+    {
+      "name": "mediumColor",
+      "description": "medium color for theme as hex value",
+      "value": "#AAA"
+    },
+    {
+      "name": "darkColor",
+      "description": "dark color for theme as hex value",
+      "value": "#999"
+    },
+    {
+      "name": "backgroundRGB",
+      "description": "rgb value of the canvas background",
+      "init": "rgb(36,36,52)"
+    },
+    {
+      "name": "hoverWeek",
+      "description": "datum of the currently focused week",
+      "value": null,
+      "on": [
+        {
+          "events": {"type": "mouseover", "markname": "week_axis_hover"},
+          "update": "datum"
+        },
+        {
+          "events": {"type": "mouseout", "markname": "week_axis_hover"},
+          "update": "null"
+        }
+      ]
+    },
+    {
+      "name": "millisecondsPerDay",
+      "description": "number of miliseconds in a day",
+      "value": 86400000
+    },
+    {
+      "name": "xScaleDomain",
+      "description": "the extent of the input values for the temporal x-axis",
+      "update": "length(data('week_line_data')) === 1 ? [pluck(data('week_line_data'), 'Date')[0]-millisecondsPerDay, pluck(data('week_line_data'), 'Date')[0] + millisecondsPerDay] : isValid(hoverWeek) ? extent(pluck(data('week_line_data'), 'Date')) : extent(pluck(data('year_line_data'), 'Date'))"
+    },
+    {
+      "name": "yScaleTempDomain",
+      "description": "the extent of the input values for the temperature y-axis",
+      "update": "extent(pluck(data('dataset_updated'), 'Temperature'))"
+    },
+    {
+      "name": "yScaleEnergyDomain",
+      "description": "the extent of the input values for the energy y-axis",
+      "update": "extent(pluck(data('dataset_updated'), 'EnergyConsumption'))"
+    },
+    {
+      "name": "height",
+      "description": "height of the canvas to match the width",
+      "update": "width"
+    },
+    {
+      "name": "showHelp",
+      "description": "boolean to show/hide the help. Toggle via double click",
+      "value": true,
+      "on": [{"events": {"type": "dblclick"}, "update": "!showHelp"}]
+    }
+  ],
+  "legends": [
+    {
+      "fill": "dayTempColorScale",
+      "orient": "none",
+      "direction": "horizontal",
+      "legendX": {"signal": "width-265"},
+      "legendY": {"signal": "range('yScaleFooter')[0]"},
+      "gradientLength": 125,
+      "gradientThickness": 5,
+      "labelColor": {"signal": "mediumColor"},
+      "labelFontSize": 15,
+      "title": "Temperature (°C)",
+      "titleOrient": "left",
+      "titleColor": {"signal": "mediumColor"},
+      "titleAnchor": "start",
+      "titleBaseline": "top",
+      "titleLineHeight": 5,
+      "titlePadding": 20,
+      "titleFontSize": 15
+    },
+    {
+      "fill": "dayEnergyColorScale",
+      "orient": "none",
+      "direction": "horizontal",
+      "legendX": {"signal": "width-265"},
+      "legendY": {"signal": "range('yScaleFooter')[0]+30"},
+      "gradientLength": 125,
+      "gradientThickness": 5,
+      "labelColor": {"signal": "mediumColor"},
+      "labelFontSize": 15,
+      "title": "‎ ‎ ‎ ‎ ‎ ‎ ‎Energy (kWh)",
+      "titleOrient": "left",
+      "titleColor": {"signal": "mediumColor"},
+      "titleAnchor": "start",
+      "titleBaseline": "top",
+      "titleLineHeight": 5,
+      "titlePadding": 20,
+      "titleFontSize": 15
+    }
+  ],
+  "marks": [
+    {
+      "name": "background_rect",
+      "type": "rect",
+      "interactive": false,
+      "encode": {
+        "enter": {
+          "x": {"signal": "-padding['left']"},
+          "y": {"signal": "-2*padding['top']"},
+          "width": {"signal": "width + padding['left'] + padding['right']"},
+          "height": {
+            "signal": "height + 2*padding['top'] + padding['bottom'] + range('yScaleFooter')[1] - range('yScaleFooter')[0]"
+          },
+          "fill": {"signal": "backgroundRGB"}
+        }
+      }
+    },
+    {
+      "name": "helper_text",
+      "description": "text to instruct the user to mouseover the chart",
+      "type": "text",
+      "interactive": false,
+      "encode": {
+        "enter": {
+          "x": {"signal": "15"},
+          "y": {"signal": "height*0.9"},
+          "fontStyle": {"value": "italic"},
+          "text": {
+            "signal": "['Mouseover the radial timeline', 'to explore the data by week', '(double click to hide this)']"
+          },
+          "fontSize": {"value": 15},
+          "fill": {
+            "signal": "scale('dayTempColorScale', data('year_line_data')[0]['yearAverageTemperature'])"
+          },
+          "angle": {"value": 0}
+        },
+        "update": {
+          "opacity": {"signal": "showHelp && !isValid(hoverWeek) ? 1 : 0"}
+        }
+      }
+    },
+    {
+      "name": "helper_arrow_text",
+      "description": "arrow pointing to the chart",
+      "type": "text",
+      "interactive": false,
+      "from": {"data": "helper_text"},
+      "encode": {
+        "enter": {
+          "x": {"signal": "datum['bounds']['x2']"},
+          "y": {
+            "signal": "datum['bounds']['y1']+(datum['bounds']['y2']-datum['bounds']['y1'])/3"
+          },
+          "baseline": {"value": "middle"},
+          "text": {"value": "⤴"},
+          "fontSize": {"value": 30},
+          "fill": {
+            "signal": "scale('dayTempColorScale', data('year_line_data')[0]['yearAverageTemperature'])"
+          },
+          "angle": {"value": 0}
+        },
+        "update": {
+          "opacity": {"signal": "showHelp && !isValid(hoverWeek) ? 1 : 0"}
+        }
+      }
+    },
+    {
+      "name": "day_circles_temperature",
+      "description": "colored bullet (•) text marks that serve as a daily temperature indicator",
+      "from": {"data": "day_data"},
+      "type": "text",
+      "encode": {
+        "update": {
+          "x": {"signal": "width/2"},
+          "y": {"signal": "height/2"},
+          "text": {"value": "•"},
+          "align": {"value": "center"},
+          "fontfamily": {"value": "consolas"},
+          "fontSize": {"value": 25},
+          "fontWeight": {"value": 800},
+          "baseline": {"value": "top"},
+          "fill": {"scale": "dayTempColorScale", "field": "Temperature"},
+          "theta": {"scale": "dayAxisScale", "field": "Date"},
+          "radius": {"signal": "dayTempAxisRadius"},
+          "angle": {"signal": "scale('dayAxisScale', datum['Date'])*(180/PI)"},
+          "opacity": {"value": 1}
+        }
+      }
+    },
+    {
+      "name": "day_bars_energy",
+      "description": "colored pipe (|) text marks that serve as a daily temperature indicator",
+      "from": {"data": "day_data"},
+      "type": "text",
+      "encode": {
+        "update": {
+          "x": {"signal": "width/2"},
+          "y": {"signal": "height/2"},
+          "text": {"value": "|"},
+          "align": {"value": "center"},
+          "fontfamily": {"value": "consolas"},
+          "fontSize": {"value": 25},
+          "fontWeight": {"value": 800},
+          "baseline": {"value": "top"},
+          "fill": {
+            "scale": "dayEnergyColorScale",
+            "field": "EnergyConsumption"
+          },
+          "theta": {"scale": "dayAxisScale", "field": "Date"},
+          "radius": {"signal": "dayEnergyAxisRadius"},
+          "angle": {"signal": "scale('dayAxisScale', datum['Date'])*(180/PI)"},
+          "opacity": {"value": 1}
+        }
+      }
+    },
+    {
+      "name": "week_axis_domain",
+      "description": "week axis domain arcs",
+      "from": {"data": "day_bars_energy"},
+      "transform": [
+        {
+          "type": "formula",
+          "expr": "datum['datum']['datum']['WeekNumber']",
+          "as": "WeekNumber"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['datum']['datum']['MaxWeekNumber']",
+          "as": "MaxWeekNumber"
+        },
+        {"type": "formula", "expr": "datum['datum']['theta']", "as": "theta"},
+        {
+          "type": "joinaggregate",
+          "fields": ["theta", "theta"],
+          "ops": ["min", "max"],
+          "groupby": ["WeekNumber"],
+          "as": ["startAngle", "endAngle"]
+        },
+        {
+          "type": "formula",
+          "expr": "datum['startAngle'] === datum['endAngle']",
+          "as": "oneDayWeek"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['oneDayWeek'] ? datum['startAngle']-bandwidth('dayAxisScale')/2 : datum['startAngle']",
+          "as": "startAngle"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['oneDayWeek'] ? datum['endAngle'] +  bandwidth('dayAxisScale')/2 : datum['endAngle']",
+          "as": "endAngle"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['startAngle']+(datum['endAngle']-datum['startAngle'])/2",
+          "as": "midAngle"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['midAngle'] < PI/2 || datum['midAngle'] > PI*1.5 ? false : true",
+          "as": "flipLabel"
+        },
+        {
+          "type": "window",
+          "ops": ["dense_rank"],
+          "fields": ["Date"],
+          "groupby": ["startAngle"],
+          "as": ["startAngleDR"]
+        },
+        {
+          "type": "formula",
+          "expr": "datum['startAngleDR'] === 1 ? 1 : 0",
+          "as": "opacity"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['opacity'] === 1 ? datum['Date'] : null",
+          "as": "Date"
+        }
+      ],
+      "type": "arc",
+      "encode": {
+        "update": {
+          "x": {"signal": "width/2"},
+          "y": {"signal": "height/2"},
+          "align": {"value": "center"},
+          "baseline": {"value": "top"},
+          "fill": {"signal": "darkColor"},
+          "startAngle": {"signal": "datum['datum']['startAngle']"},
+          "endAngle": {"signal": "datum['datum']['endAngle']"},
+          "innerRadius": {"signal": "weekAxisRadius-1.5"},
+          "outerRadius": {"signal": "weekAxisRadius"},
+          "opacity": {"field": "opacity"}
+        }
+      }
+    },
+    {
+      "name": "week_axis_hover",
+      "description": "week axis domain arcs that appear on hover to indicate the currently focused week",
+      "from": {"data": "week_axis_domain"},
+      "interactive": true,
+      "type": "arc",
+      "encode": {
+        "update": {
+          "x": {"signal": "width/2"},
+          "y": {"signal": "height/2"},
+          "align": {"value": "center"},
+          "baseline": {"value": "top"},
+          "fill": {"signal": "lightColor"},
+          "startAngle": {
+            "signal": "datum['startAngle']-bandwidth('dayAxisScale')/2"
+          },
+          "endAngle": {
+            "signal": "datum['endAngle']+bandwidth('dayAxisScale')/2"
+          },
+          "innerRadius": {"signal": "weekAxisRadius-(min(width,height)/2)"},
+          "outerRadius": {"signal": "weekAxisRadius+30"},
+          "opacity": {"value": 0}
+        },
+        "hover": {
+          "opacity": {"value": 0.3},
+          "startAngle": {"signal": "datum['startAngle']"},
+          "endAngle": {"signal": "datum['endAngle']"}
+        }
+      }
+    },
+    {
+      "name": "week_axis_label_hover",
+      "description": "week axis text labels that appear on hover to indicate the currently focused week",
+      "from": {"data": "week_axis_domain"},
+      "type": "text",
+      "encode": {
+        "update": {
+          "x": {"signal": "width/2"},
+          "y": {"signal": "height/2"},
+          "dy": {"signal": "(datum['flipLabel'] ? -1 : 1) *-4"},
+          "fill": {"signal": "lightColor"},
+          "fontSize": {"value": 22},
+          "align": {"value": "center"},
+          "text": {"signal": "'week ' + datum['WeekNumber']"},
+          "baseline": {"signal": "datum['flipLabel'] ? 'top': 'bottom'"},
+          "radius": {"signal": "monthAxisRadius+25"},
+          "theta": {"signal": "datum['midAngle']"},
+          "angle": {
+            "signal": "(datum['flipLabel'] ? (-1*PI/PI*180) : 0) + datum['midAngle']*(180/PI)"
+          },
+          "opacity": {
+            "signal": "isValid(hoverWeek) && datum['WeekNumber'] === hoverWeek['WeekNumber'] && datum['opacity'] > 0 ? 1 : 0"
+          }
+        }
+      }
+    },
+    {
+      "name": "month_axis_domain",
+      "description": "month axis domain arcs",
+      "from": {"data": "day_bars_energy"},
+      "transform": [
+        {
+          "type": "formula",
+          "expr": "datum['datum']['datum']['MonthNumber']",
+          "as": "MonthNumber"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['datum']['datum']['MonthName']",
+          "as": "MonthName"
+        },
+        {"type": "formula", "expr": "datum['datum']['theta']", "as": "theta"},
+        {
+          "type": "joinaggregate",
+          "fields": ["theta", "theta"],
+          "ops": ["min", "max"],
+          "groupby": ["MonthName"],
+          "as": ["startAngle", "endAngle"]
+        },
+        {
+          "type": "formula",
+          "expr": "datum['startAngle']+(datum['endAngle']-datum['startAngle'])/2",
+          "as": "midAngle"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['midAngle'] < PI/2 || datum['midAngle'] > PI*1.5 ? false : true",
+          "as": "flipLabel"
+        },
+        {
+          "type": "window",
+          "ops": ["dense_rank"],
+          "fields": ["MonthNumber"],
+          "groupby": ["startAngle"],
+          "as": ["startAngleDR"]
+        },
+        {
+          "type": "formula",
+          "expr": "datum['startAngleDR'] === 1 ? 1 : 0",
+          "as": "opacity"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['opacity'] === 1 ? datum['Date'] : null",
+          "as": "Date"
+        }
+      ],
+      "type": "arc",
+      "encode": {
+        "update": {
+          "x": {"signal": "width/2"},
+          "y": {"signal": "height/2"},
+          "align": {"value": "center"},
+          "baseline": {"value": "top"},
+          "fill": {"signal": "darkColor"},
+          "startAngle": {"signal": "datum['datum']['startAngle']"},
+          "endAngle": {"signal": "datum['datum']['endAngle']"},
+          "innerRadius": {"signal": "monthAxisRadius-3"},
+          "outerRadius": {"signal": "monthAxisRadius"},
+          "opacity": {"field": "opacity"}
+        },
+        "hover": {"opacity": {"value": 0}}
+      }
+    },
+    {
+      "name": "month_axis_start_ticks",
+      "description": "pipe (|) text mark on the month axis that shows the start of a month",
+      "from": {"data": "month_axis_domain"},
+      "type": "text",
+      "encode": {
+        "update": {
+          "x": {"signal": "width/2"},
+          "y": {"signal": "height/2"},
+          "fill": {"signal": "darkColor"},
+          "stroke": {"signal": "darkColor"},
+          "align": {"value": "left"},
+          "text": {"value": "|"},
+          "baseline": {"value": "bottom"},
+          "radius": {"signal": "monthAxisRadius-3"},
+          "theta": {"field": "startAngle"},
+          "angle": {"signal": "datum['startAngle']*(180/PI)"}
+        }
+      }
+    },
+    {
+      "name": "month_axis_end_ticks",
+      "description": "pipe (|) text mark on the month axis that shows the end of a month",
+      "from": {"data": "month_axis_domain"},
+      "type": "text",
+      "encode": {
+        "update": {
+          "x": {"signal": "width/2"},
+          "dx": {"value": 0.5},
+          "y": {"signal": "height/2"},
+          "fill": {"signal": "darkColor"},
+          "stroke": {"signal": "darkColor"},
+          "align": {"value": "right"},
+          "text": {"value": "|"},
+          "baseline": {"value": "bottom"},
+          "radius": {"signal": "monthAxisRadius-3"},
+          "theta": {"field": "endAngle"},
+          "angle": {"signal": "datum['endAngle']*(180/PI)"}
+        }
+      }
+    },
+    {
+      "name": "month_axis_labels",
+      "description": "month axis text labels",
+      "from": {"data": "month_axis_domain"},
+      "type": "text",
+      "encode": {
+        "update": {
+          "x": {"signal": "width/2"},
+          "y": {"signal": "height/2"},
+          "dy": {"signal": "(datum['flipLabel'] ? -1 : 1) *-7"},
+          "fill": {"signal": "darkColor"},
+          "fontSize": {"value": 20},
+          "fontWeight": {"value": "100"},
+          "align": {"value": "center"},
+          "text": {"signal": "datum['MonthName']"},
+          "baseline": {"signal": "datum['flipLabel'] ? 'top': 'bottom'"},
+          "radius": {"signal": "monthAxisRadius-2"},
+          "theta": {"signal": "datum['midAngle']"},
+          "angle": {
+            "signal": "(datum['flipLabel'] ? (-1*PI/PI*180) : 0) + datum['midAngle']*(180/PI)"
+          },
+          "opacity": {"signal": "datum['opacity']"}
+        }
+      }
+    },
+    {
+      "name": "background",
+      "description": "a filled arc with the sane color as the canvas background. This arc prevents the week hover arcs from obsecuring the line graphs",
+      "interactive": false,
+      "type": "arc",
+      "encode": {
+        "update": {
+          "x": {"signal": "width/2"},
+          "y": {"signal": "height/2"},
+          "startAngle": {"value": 0},
+          "endAngle": {"signal": "2*PI"},
+          "innerRadius": {"value": 0},
+          "outerRadius": {"signal": "dayTempAxisRadius*0.925"},
+          "fill": {"signal": "backgroundRGB"}
+        }
+      }
+    },
+    {
+      "name": "zero_temp_line",
+      "description": "dashed horizontal rule to indicate where 0°C is along the temperature y-axis",
+      "interactive": false,
+      "type": "rule",
+      "encode": {
+        "update": {
+          "x": {"signal": "range('xScale')[0]"},
+          "x2": {"signal": "range('xScale')[1]"},
+          "y": {"signal": "scale('yScaleTemp', 0)"},
+          "y2": {"signal": "scale('yScaleTemp', 0)+2"},
+          "stroke": {"signal": "lightColor"},
+          "strokeDash": {"value": [8, 4]},
+          "strokeWidth": {"value": 0.5}
+        }
+      }
+    },
+    {
+      "name": "temp_week_line",
+      "description": "line mark to show the temperature values for the focused week",
+      "interactive": false,
+      "type": "line",
+      "from": {"data": "week_line_data"},
+      "encode": {
+        "update": {
+          "x": {"signal": "scale('xScale', datum['Date'])"},
+          "y": {"signal": "scale('yScaleTemp', datum['Temperature'])"},
+          "stroke": {
+            "signal": "scale('dayTempColorScale', datum['weeklyAverageTemperature'])"
+          },
+          "strokeWidth": {"value": 1.5}
+        }
+      }
+    },
+    {
+      "name": "temp_week_point",
+      "description": "circle mark for a temperature value that appears only when focused on a single week",
+      "interactive": false,
+      "type": "symbol",
+      "from": {"data": "week_line_data"},
+      "encode": {
+        "update": {
+          "size": {"signal": "length(data('week_line_data')) === 1 ? 300 : 75"},
+          "x": {"signal": "scale('xScale', datum['Date'])"},
+          "y": {"signal": "scale('yScaleTemp', datum['Temperature'])"},
+          "stroke": {
+            "signal": "scale('dayTempColorScale', datum['weeklyAverageTemperature'])"
+          },
+          "fill": {"signal": "backgroundRGB"},
+          "fillOpacity": {"value": 1},
+          "opacity": {"signal": "isValid(hoverWeek) ? 1 : 0"}
+        }
+      }
+    },
+    {
+      "name": "temp_year_line",
+      "description": "line mark to show the temperature values for the year",
+      "interactive": false,
+      "type": "line",
+      "from": {"data": "year_line_data"},
+      "encode": {
+        "update": {
+          "x": {"signal": "scale('xScale', datum['Date'])"},
+          "y": {
+            "signal": "scale('yScaleTemp', datum['weeklyAverageTemperature'])"
+          },
+          "stroke": {
+            "signal": "scale('dayTempColorScale', datum['yearAverageTemperature'])"
+          },
+          "strokeWidth": {"value": 1.5}
+        }
+      }
+    },
+    {
+      "name": "energy_week_line",
+      "description": "line mark to show the energy consumption values for the focused week",
+      "interactive": false,
+      "type": "line",
+      "from": {"data": "week_line_data"},
+      "encode": {
+        "update": {
+          "x": {"signal": "scale('xScale', datum['Date'])"},
+          "y": {"signal": "scale('yScaleEnergy', datum['EnergyConsumption'])"},
+          "stroke": {
+            "signal": "scale('dayEnergyColorScale', datum['weeklyAverageEnergyConsumption'])"
+          },
+          "strokeWidth": {"value": 1.5}
+        }
+      }
+    },
+    {
+      "name": "energy_week_point",
+      "description": "circle marks for an energy consumption value that appears only when the focused data consists of a single day",
+      "interactive": false,
+      "type": "symbol",
+      "from": {"data": "week_line_data"},
+      "encode": {
+        "update": {
+          "size": {"signal": "length(data('week_line_data')) === 1 ? 300 : 75"},
+          "x": {"signal": "scale('xScale', datum['Date'])"},
+          "y": {"signal": "scale('yScaleEnergy', datum['EnergyConsumption'])"},
+          "stroke": {
+            "signal": "scale('dayEnergyColorScale', datum['weeklyAverageEnergyConsumption'])"
+          },
+          "fill": {"signal": "backgroundRGB"},
+          "fillOpacity": {"value": 1},
+          "opacity": {"signal": "isValid(hoverWeek) ? 1 : 0"}
+        }
+      }
+    },
+    {
+      "name": "energy_year_line",
+      "description": "line mark to show the energy consumption values for the year",
+      "interactive": false,
+      "type": "line",
+      "from": {"data": "year_line_data"},
+      "encode": {
+        "update": {
+          "x": {"signal": "scale('xScale', datum['Date'])"},
+          "y": {
+            "signal": "scale('yScaleEnergy', datum['weeklyAverageEnergyConsumption'])"
+          },
+          "stroke": {
+            "signal": "scale('dayEnergyColorScale', datum['yearAverageEnergyConsumption'])"
+          },
+          "strokeWidth": {"value": 1.5}
+        }
+      }
+    },
+    {
+      "type": "group",
+      "name": "footer_group",
+      "description": "The group of marks located at the bottom of the canvas that provide additional information about the visual",
+      "marks": [
+        {
+          "name": "footer_prefix_text",
+          "description": "The labels for each footer item",
+          "type": "text",
+          "from": {"data": "footer"},
+          "interactive": false,
+          "encode": {
+            "update": {
+              "opacity": {"value": 1},
+              "fill": {"signal": "darkColor"},
+              "fontWeight": {"value": 100},
+              "fontSize": {"value": 13},
+              "baseline": {"value": "middle"},
+              "x": {"signal": "0"},
+              "y": {"signal": "scale('yScaleFooter', datum['id'])"},
+              "text": {"signal": "datum['text'][0]"}
+            }
+          }
+        },
+        {
+          "name": "footer_href_text",
+          "description": "The hyperlinks for each footer item",
+          "type": "text",
+          "from": {"data": "footer"},
+          "encode": {
+            "update": {
+              "opacity": {"value": 0.65},
+              "fill": {"signal": "lightColor"},
+              "fontWeight": {"value": 600},
+              "fontSize": {"value": 13},
+              "baseline": {"value": "middle"},
+              "x": {
+                "signal": "data('footer_prefix_text')[0]['bounds']['x2']+5"
+              },
+              "y": {"signal": "scale('yScaleFooter', datum['id'])"},
+              "text": {"signal": "datum['text'][1]"},
+              "href": {"field": "href"},
+              "cursor": {"value": "pointer"},
+              "tooltip": {"field": "href"}
+            },
+            "hover": {"opacity": {"value": 1}}
+          }
+        }
+      ]
+    }
+  ],
+  "scales": [
+    {
+      "name": "dayAxisScale",
+      "type": "band",
+      "domain": {"data": "dataset", "field": "Date", "sort": {"field": "Date"}},
+      "range": [0, {"signal": "2*PI"}],
+      "paddingInner": {"signal": "xAxisOuterPaddingPercentage"},
+      "paddingOuter": {"signal": "xAxisOuterPaddingPercentage/2"}
+    },
+    {
+      "name": "dayEnergyColorScale",
+      "type": "linear",
+      "domain": {"data": "dataset", "field": "EnergyConsumption"},
+      "range": {"scheme": "purples"}
+    },
+    {
+      "name": "dayTempColorScale",
+      "type": "linear",
+      "domain": {"data": "dataset", "field": "Temperature"},
+      "range": {"scheme": "blueorange"}
+    },
+    {
+      "name": "xScale",
+      "type": "time",
+      "nice": true,
+      "domain": {"signal": "xScaleDomain"},
+      "range": [{"signal": "width/4.25"}, {"signal": "width/2 + width/3.75"}]
+    },
+    {
+      "name": "yScaleTemp",
+      "type": "linear",
+      "nice": true,
+      "zero": true,
+      "domain": {"signal": "yScaleTempDomain"},
+      "range": [{"signal": "height/2.1"}, {"signal": "(height/2 - height/5)"}]
+    },
+    {
+      "name": "yScaleEnergy",
+      "type": "linear",
+      "nice": true,
+      "zero": true,
+      "domain": {"signal": "yScaleEnergyDomain"},
+      "range": [{"signal": "(height/2 + height/5)"}, {"signal": "height/1.9"}]
+    },
+    {
+      "name": "yScaleFooter",
+      "type": "band",
+      "domain": {"data": "footer", "field": "id"},
+      "range": [
+        {"signal": "height+5"},
+        {"signal": "height+25+length(data('footer'))*11"}
+      ]
+    }
+  ],
+  "axes": [
+    {
+      "scale": "xScale",
+      "title": {
+        "signal": "isValid(hoverWeek) ? ['Week: ' + hoverWeek['WeekNumber'], hoverWeek['datum']['datum']['MonthName'] + ' ' + year(data('dataset')[7]['Date'])] : year(data('dataset')[7]['Date'])"
+      },
+      "titleY": {"signal": "-dayEnergyAxisRadius*0.8"},
+      "titleFontSize": {"signal": "isValid(hoverWeek) ? 25 : 50"},
+      "titleColor": {"signal": "lightColor"},
+      "titleFont": {"value": "Segoe UI"},
+      "tickCount": {
+        "signal": "isValid(hoverWeek) ? {interval: 'day', 'step': 1} : {interval: 'month', 'step': 1}"
+      },
+      "domain": false,
+      "labelPadding": 5,
+      "labelColor": {"signal": "darkColor"},
+      "labelFontSize": 15,
+      "formatType": "time",
+      "format": {"signal": "isValid(hoverWeek) ? '%d %a' : '%b'"},
+      "labelOverlap": "greedy",
+      "ticks": false,
+      "orient": "bottom",
+      "offset": {"signal": "-height/2"},
+      "labelBaseline": "bottom",
+      "zindex": 99
+    },
+    {
+      "scale": "yScaleTemp",
+      "title": "Average Daily Temperature (°C)",
+      "titleColor": {"signal": "lightColor"},
+      "titleFont": {"value": "Segoe UI"},
+      "titleFontWeight": "400",
+      "titleFontSize": 18,
+      "titleAngle": 0,
+      "titleAnchor": "end",
+      "titleAlign": "left",
+      "titleX": {"signal": "-20"},
+      "titleY": {"signal": "range('yScaleTemp')[1]-10"},
+      "titleBaseline": {"value": "bottom"},
+      "domain": false,
+      "labelColor": {"signal": "darkColor"},
+      "labelFontSize": 15,
+      "labelOverlap": "greedy",
+      "ticks": false,
+      "orient": "left",
+      "labelPadding": {"signal": "(width/32)"},
+      "grid": true,
+      "gridScale": "xScale",
+      "gridWidth": 0.5,
+      "gridColor": {"signal": "darkColor"},
+      "gridOpacity": {"signal": "0.35"},
+      "offset": {"signal": "-width/4"},
+      "zindex": 99
+    },
+    {
+      "scale": "yScaleEnergy",
+      "title": "Total Daily Energy Consumption (kWh)",
+      "titleColor": {"signal": "lightColor"},
+      "titleFont": {"value": "Segoe UI"},
+      "titleFontWeight": "400",
+      "titleFontSize": 18,
+      "titleAngle": 0,
+      "titleAnchor": "start",
+      "titleAlign": "left",
+      "titleBaseline": "top",
+      "titleX": {"signal": "-15"},
+      "titleY": {"signal": "range('yScaleEnergy')[0]+10"},
+      "domain": false,
+      "labelColor": {"signal": "darkColor"},
+      "labelFontSize": 15,
+      "labelOverlap": "greedy",
+      "ticks": false,
+      "orient": "left",
+      "labelPadding": {"signal": "(width/32)"},
+      "grid": true,
+      "gridScale": "xScale",
+      "gridWidth": 0.5,
+      "gridColor": {"signal": "darkColor"},
+      "gridOpacity": {"signal": "0.35"},
+      "offset": {"signal": "-width/4"},
+      "zindex": 99
+    }
+  ],
+  "data": [
+    {
+      "name": "dataset",
+      "url": "https://raw.githubusercontent.com/Giammaria/PublicFiles/master/pbi/POC/20240109_Radial_Line_Combo_vl/data/weather_energy_dataset.csv",
+      "format": {
+        "type": "csv",
+        "parse": {
+          "Date": "date",
+          "Temperature": "number",
+          "Precipitation": "number",
+          "EnergyConsumption": "number",
+          "DayNumber": "number",
+          "WeekNumber": "number",
+          "MonthNumber": "number",
+          "MonthName": "string"
+        }
+      }
+    },
+    {
+      "name": "dataset_updated",
+      "source": "dataset",
+      "transform": [
+        {
+          "type": "formula",
+          "expr": "toDate(toNumber(datum['Date']))",
+          "as": "Date"
+        },
+        {"type": "collect", "sort": {"field": "Date"}},
+        {
+          "type": "formula",
+          "expr": "utcFormat(datum['Date'], '%Y-%m-%d %H:%M:%S.%L')",
+          "as": "dateFormatted"
+        },
+        {
+          "type": "formula",
+          "expr": "utcFormat(datum['Date'], '%A')",
+          "as": "dayOfWeek"
+        },
+        {
+          "type": "formula",
+          "expr": "data('dataset')[0]['DayNumber'] > 0",
+          "as": "shortFirstWeek"
+        }
+      ]
+    },
+    {
+      "name": "day_data",
+      "source": "dataset_updated",
+      "transform": [
+        {
+          "type": "joinaggregate",
+          "ops": ["max"],
+          "fields": ["WeekNumber"],
+          "as": ["MaxWeekNumber"]
+        },
+        {
+          "type": "formula",
+          "expr": "datum['MaxWeekNumber']",
+          "as": "MaxWeekNumber"
+        },
+        {
+          "type": "formula",
+          "expr": "year(datum['Date'])+slice('00'+datum['MonthNumber'], -2)",
+          "as": "Sort"
+        }
+      ]
+    },
+    {
+      "name": "week_line_data",
+      "source": "dataset_updated",
+      "transform": [
+        {
+          "type": "filter",
+          "expr": "isValid(hoverWeek) && hoverWeek['datum']['datum']['WeekNumber'] === datum['WeekNumber']"
+        },
+        {
+          "type": "joinaggregate",
+          "ops": ["average", "average"],
+          "groupby": ["WeekNumber"],
+          "fields": ["Temperature", "EnergyConsumption"],
+          "as": ["weeklyAverageTemperature", "weeklyAverageEnergyConsumption"]
+        }
+      ]
+    },
+    {
+      "name": "year_line_data",
+      "source": "dataset_updated",
+      "transform": [
+        {"type": "filter", "expr": "!isValid(hoverWeek)"},
+        {
+          "type": "joinaggregate",
+          "ops": ["average", "average"],
+          "groupby": ["WeekNumber"],
+          "fields": ["Temperature", "EnergyConsumption"],
+          "as": ["weeklyAverageTemperature", "weeklyAverageEnergyConsumption"]
+        },
+        {
+          "type": "joinaggregate",
+          "ops": ["average", "average"],
+          "fields": ["Temperature", "EnergyConsumption"],
+          "as": ["yearAverageTemperature", "yearAverageEnergyConsumption"]
+        }
+      ]
+    },
+    {
+      "name": "footer",
+      "values": [
+        {
+          "id": 1,
+          "text": ["Data Source:", "Generated via Python Script"],
+          "href": "https://github.com/Giammaria/PublicFiles/blob/master/pbi/POC/20240109_Radial_Line_Combo_vl/data/main.py"
+        },
+        {
+          "id": 2,
+          "text": ["Inspiration:", "Sunny Edinburgh"],
+          "href": "https://sunny-edi.herokuapp.com/"
+        },
+        {
+          "id": 3,
+          "text": ["Data Viz By:", "Madison Giammaria"],
+          "href": "https://www.linkedin.com/in/madison-giammaria-58463b33"
+        }
+      ]
+    }
+  ]
+}
