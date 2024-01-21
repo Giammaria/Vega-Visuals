@@ -2,10 +2,11 @@
 This is a growing compilation of visuals that I have created in [Vega](https://vega.github.io/vega/). Many of these visuals are accompanied by a Power BI file that includes a [Deneb](https://deneb-viz.github.io/) version. Some visuals are more experimental, while others are more complete. My hope is that others can learn, critique, and gain inspiration from visiting this collection.
 
 ![Vega-Visuals](vega-visuals-collage.jpg)
-<span style="font-size:10px"><a href="https://www.freepik.com/free-psd/web-pages-mock-up_1195506.htm#page=3&query=digital%20showcase%20collage&position=15&from_view=search&track=ais&uuid=41600ac6-bd59-4a1e-8753-dc7d6ee6f473#position=15&page=3&query=digital%20showcase%20collage">PSD template by aleksandr_samochernyi</a></span>
+<small><a href="https://www.freepik.com/free-psd/web-pages-mock-up_1195506.htm#page=3&query=digital%20showcase%20collage&position=15&from_view=search&track=ais&uuid=41600ac6-bd59-4a1e-8753-dc7d6ee6f473#position=15&page=3&query=digital%20showcase%20collage">PSD template by aleksandr_samochernyi</a></small>
 
 ‎
-## Interactive Radial / Line Combo Chart <small><sup><em><code style="color : red">New!</code></em></sup></small>
+## Interactive Radial / Line Combo Chart <small><sup><em><code>New!</code></em></sup></small>
+
 ![Vega-Visuals](20240118-radial-line-combo/artifacts/screenshot.png)
 A radial / line combo chart that displays Temperature vs Energy Consumption for the given year. Focus can be shifted to a specific week via mouseover. The data is entirely fictional, and the visual was inspired by the [Sunny Edinburgh](https://sunny-edi.herokuapp.com/) project.
 |Vega|Power BI|
@@ -71,7 +72,7 @@ Here I'm comparing different easing functions and visualizing their respective f
 ‎
 ## Interactive Timeline
 ![](20231117-interactive-timeline/artifacts/screenshot.png)
-This visual is an exploration of some alternative interaction techniques. It visual includes: 
+This visual is an exploration of some alternative interaction techniques. It includes: 
 - A scrubber control (in the form of a rotating baseball!).
 - A dynamic progress line.
 - Sub node-link trees that fade-in on a delay.
