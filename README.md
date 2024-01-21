@@ -1,7 +1,7 @@
 # Vega-Visuals
 This is a growing compilation of visuals that I have created in [Vega](https://vega.github.io/vega/). Many of these visuals are accompanied by a Power BI file that includes a [Deneb](https://deneb-viz.github.io/) version. Some visuals are more experimental, while others are more complete. My hope is that others can learn, critique, and gain inspiration from visiting this collection.
 
-![Vega-Visuals](vega-visuals-collage.jpg)
+![Vega-Visuals](artifacts/vega-visuals-collage.jpg)
 <small><a href="https://www.freepik.com/free-psd/web-pages-mock-up_1195506.htm#page=3&query=digital%20showcase%20collage&position=15&from_view=search&track=ais&uuid=41600ac6-bd59-4a1e-8753-dc7d6ee6f473#position=15&page=3&query=digital%20showcase%20collage">PSD template by aleksandr_samochernyi</a></small>
 
 ‎
