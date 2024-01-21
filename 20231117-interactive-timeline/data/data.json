@@ -1,0 +1,191 @@
+[
+    {
+        "Season": "1923",
+        "Manager": "Miller Huggins",
+        "Opponent": "New York Giants",
+        "Series score": "4-2",
+        "Record": "98-54"
+    },
+    {
+        "Season": "1927",
+        "Manager": "Miller Huggins",
+        "Opponent": "Pittsburgh Pirates",
+        "Series score": "4-0",
+        "Record": "110-44"
+    },
+    {
+        "Season": "1928",
+        "Manager": "Miller Huggins",
+        "Opponent": "St. Louis Cardinals",
+        "Series score": "4-0",
+        "Record": "101-53"
+    },
+    {
+        "Season": "1932",
+        "Manager": "Joe McCarthy",
+        "Opponent": "Chicago Cubs",
+        "Series score": "4-0",
+        "Record": "107-47"
+    },
+    {
+        "Season": "1936",
+        "Manager": "Joe McCarthy",
+        "Opponent": "New York Giants",
+        "Series score": "4-2",
+        "Record": "102-51"
+    },
+    {
+        "Season": "1937",
+        "Manager": "Joe McCarthy",
+        "Opponent": "New York Giants",
+        "Series score": "4-1",
+        "Record": "102-52"
+    },
+    {
+        "Season": "1938",
+        "Manager": "Joe McCarthy",
+        "Opponent": "Chicago Cubs",
+        "Series score": "4-0",
+        "Record": "99-53"
+    },
+    {
+        "Season": "1939",
+        "Manager": "Joe McCarthy",
+        "Opponent": "Cincinnati Reds",
+        "Series score": "4-0",
+        "Record": "106-45"
+    },
+    {
+        "Season": "1941",
+        "Manager": "Joe McCarthy",
+        "Opponent": "Brooklyn Dodgers",
+        "Series score": "4-1",
+        "Record": "101-53"
+    },
+    {
+        "Season": "1943",
+        "Manager": "Joe McCarthy",
+        "Opponent": "St. Louis Cardinals",
+        "Series score": "4-1",
+        "Record": "98-56"
+    },
+    {
+        "Season": "1947",
+        "Manager": "Bucky Harris",
+        "Opponent": "Brooklyn Dodgers",
+        "Series score": "4-3",
+        "Record": "97-57"
+    },
+    {
+        "Season": "1949",
+        "Manager": "Casey Stengel",
+        "Opponent": "Brooklyn Dodgers",
+        "Series score": "4-1",
+        "Record": "97-57"
+    },
+    {
+        "Season": "1950",
+        "Manager": "Casey Stengel",
+        "Opponent": "Philadelphia Phillies",
+        "Series score": "4-0",
+        "Record": "98-56"
+    },
+    {
+        "Season": "1951",
+        "Manager": "Casey Stengel",
+        "Opponent": "New York Giants",
+        "Series score": "4-2",
+        "Record": "98-56"
+    },
+    {
+        "Season": "1952",
+        "Manager": "Casey Stengel",
+        "Opponent": "Brooklyn Dodgers",
+        "Series score": "4-3",
+        "Record": "95-59"
+    },
+    {
+        "Season": "1953",
+        "Manager": "Casey Stengel",
+        "Opponent": "Brooklyn Dodgers",
+        "Series score": "4-2",
+        "Record": "99-51"
+    },
+    {
+        "Season": "1956",
+        "Manager": "Casey Stengel",
+        "Opponent": "Brooklyn Dodgers",
+        "Series score": "4-3",
+        "Record": "97-57"
+    },
+    {
+        "Season": "1958",
+        "Manager": "Casey Stengel",
+        "Opponent": "Milwaukee Braves",
+        "Series score": "4-3",
+        "Record": "92-62"
+    },
+    {
+        "Season": "1961",
+        "Manager": "Ralph Houk",
+        "Opponent": "Cincinnati Reds",
+        "Series score": "4-1",
+        "Record": "109-53"
+    },
+    {
+        "Season": "1962",
+        "Manager": "Ralph Houk",
+        "Opponent": "San Francisco Giants",
+        "Series score": "4-3",
+        "Record": "96-66"
+    },
+    {
+        "Season": "1977",
+        "Manager": "Billy Martin",
+        "Opponent": "Los Angeles Dodgers",
+        "Series score": "4-2",
+        "Record": "100-62"
+    },
+    {
+        "Season": "1978",
+        "Manager": "Bob Lemon",
+        "Opponent": "Los Angeles Dodgers",
+        "Series score": "4-2",
+        "Record": "100-63"
+    },
+    {
+        "Season": "1996",
+        "Manager": "Joe Torre",
+        "Opponent": "Atlanta Braves",
+        "Series score": "4-2",
+        "Record": "92-70"
+    },
+    {
+        "Season": "1998",
+        "Manager": "Joe Torre",
+        "Opponent": "San Diego Padres",
+        "Series score": "4-0",
+        "Record": "114-48"
+    },
+    {
+        "Season": "1999",
+        "Manager": "Joe Torre",
+        "Opponent": "Atlanta Braves",
+        "Series score": "4-0",
+        "Record": "98-64"
+    },
+    {
+        "Season": "2000",
+        "Manager": "Joe Torre",
+        "Opponent": "New York Mets",
+        "Series score": "4-1",
+        "Record": "87-74"
+    },
+    {
+        "Season": "2009",
+        "Manager": "Joe Girardi",
+        "Opponent": "Philadelphia Phillies",
+        "Series score": "4-2",
+        "Record": "103-59"
+    }
+]

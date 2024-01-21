@@ -1,6 +1,11 @@
 {
   "$schema": "https://vega.github.io/schema/vega/v5.json",
   "description": "Here you can compare different easing functions and see their respective formulas. This isn't a comprehensive list of easing functions, but these are definitely some popular ones. Special thanks to Pavithra Kodmad for writing this excellent article on understanding easing! https://css-tricks.com/ease-y-breezy-a-primer-on-easing-functions/ A few months prior to making this, I would not have thought that this would be feasible in Vega.",
+  "usermeta": {
+    "developedBy": "Madison Giammaria",
+    "LinkedIn": "https://www.linkedin.com/in/madison-giammaria-58463b33",
+    "email": "giammariam@gmail.com"
+  },
   "padding": {"top": 0, "right": 20, "bottom": 20, "left": 0},
   "width": 1000,
   "height": 300,

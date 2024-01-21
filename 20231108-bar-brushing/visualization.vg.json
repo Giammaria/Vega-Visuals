@@ -1,0 +1,550 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "description": "This is an exploration of an alternative brushing technique. The bars show amounts as with any traditional bar chart, but has the added value of being adjustable to satisfy a given target. This type of interactivy gives the user more control and the ability to optimize inputs.",
+  "usermeta": {
+    "developedBy": "Madison Giammaria",
+    "LinkedIn": "https://www.linkedin.com/in/madison-giammaria-58463b33",
+    "email": "giammariam@gmail.com"
+  },
+  "width": 200,
+  "title": {
+    "text": "Macro Targets",
+    "align": "left",
+    "anchor": "start",
+    "subtitle": {
+      "signal": "['1. Enter your calorie target below ('+min_calories_allowed+'kcal - '+max_calories_allowed+'kcal)', '2. Click and drag the bars below to determine your macro targets (g)', empty_character, '1g fat = 9 kcal', '1g carbohydrates = 4 kcal', '1g protein = 4 kcal', empty_character]"
+    }
+  },
+  "signals": [
+    {"name": "bar_area_height", "value": 350},
+    {"name": "bar_y_step", "update": "bar_area_height/length(data('dataset'))"},
+    {"name": "bar_area_width", "update": "width"},
+    {"name": "total_percentage_width", "update": "bar_y_step"},
+    {
+      "name": "ring_diameter",
+      "update": "min(total_percentage_width,bar_area_height)"
+    },
+    {"name": "min_calories_allowed", "update": "1400"},
+    {"name": "max_calories_allowed", "update": "5000"},
+    {"name": "empty_character", "value": "‎"},
+    {
+      "name": "calorie_target_is_valid",
+      "value": true,
+      "on": [
+        {
+          "events": {"signal": "calorie_target"},
+          "update": "isNumber(toNumber(calorie_target)) && calorie_target >= min_calories_allowed && calorie_target <= max_calories_allowed"
+        }
+      ]
+    },
+    {
+      "name": "calorie_target",
+      "value": 2500,
+      "bind": {
+        "input": "search",
+        "placeholder": "kcals",
+        "name": "Calorie Target"
+      }
+    },
+    {
+      "name": "unit",
+      "value": {},
+      "on": [
+        {"events": "mousemove", "update": "isTuple(group()) ? group() : unit"}
+      ]
+    },
+    {
+      "name": "macro",
+      "value": null,
+      "on": [
+        {
+          "events": "mouseover",
+          "update": "calorie_target_is_valid ? datum ? datum['macro'] : macro : null"
+        },
+        {"events": "mouseout", "update": "null"},
+        {
+          "events": {"signal": "calorie_target_is_valid"},
+          "update": "calorie_target_is_valid ? macro : null"
+        }
+      ]
+    },
+    {
+      "name": "brushed_value",
+      "value": null,
+      "on": [
+        {
+          "events": "pointerdown",
+          "update": "macro ? invert('bar_x', x(unit)) : brushed_value"
+        },
+        {
+          "events": {
+            "type": "pointermove",
+            "source": "window",
+            "between": [{"type": "pointerdown"}, {"type": "pointerup"}]
+          },
+          "update": "unit && unit !== {} ? invert('bar_x', clamp(x(unit), 0, width)) : null"
+        },
+        {"events": "mouseout", "update": "null"}
+      ]
+    }
+  ],
+  "marks": [
+    {
+      "name": "bar_group",
+      "type": "group",
+      "marks": [
+        {
+          "name": "bar_extent_lines",
+          "from": {"data": "bar_extent_lines"},
+          "type": "text",
+          "encode": {
+            "update": {
+              "text": {
+                "signal": "['▲', format(datum['value'], '.0%'), '(Macro ' + datum['type'] + ' Input)',empty_character, empty_character,empty_character]"
+              },
+              "align": {"value": "center"},
+              "x": {"scale": "bar_x", "field": "value"},
+              "y": {"signal": "bar_y_step", "offset": 10}
+            }
+          }
+        },
+        {
+          "name": "brush_bars",
+          "from": {"data": "dataset"},
+          "type": "rect",
+          "encode": {
+            "update": {
+              "cursor": {
+                "signal": "calorie_target_is_valid ? 'pointer' : 'default'"
+              },
+              "fill": {"value": "transparent"},
+              "x": {"signal": "width"},
+              "x2": {"scale": "bar_x", "signal": "domain('bar_x')[0]"},
+              "y": {"scale": "bar_y", "field": "macro"},
+              "height": {"signal": "max(0.25, bandwidth('bar_y'))"}
+            }
+          }
+        },
+        {
+          "name": "bars",
+          "from": {"data": "dataset_updated"},
+          "type": "rect",
+          "encode": {
+            "update": {
+              "opacity": {"signal": "calorie_target_is_valid ? 1 : 0.5"},
+              "fill": {"scale": "color", "field": "macro"},
+              "cursor": {
+                "signal": "calorie_target_is_valid ? 'pointer' : 'default'"
+              },
+              "x": {"scale": "bar_x", "field": "value"},
+              "x2": {"scale": "bar_x", "signal": "domain('bar_x')[0]"},
+              "y": {"scale": "bar_y", "field": "macro"},
+              "height": {"signal": "max(0.25, bandwidth('bar_y'))"}
+            }
+          }
+        },
+        {
+          "name": "bar_label_percentages",
+          "from": {"data": "dataset_updated"},
+          "type": "text",
+          "encode": {
+            "update": {
+              "opacity": {
+                "signal": "scale('bar_x', datum['value']) > 30 && calorie_target_is_valid ? 1 : 0"
+              },
+              "cursor": {
+                "signal": "calorie_target_is_valid ? 'pointer' : 'default'"
+              },
+              "fill": {
+                "signal": "datum['label_position'] === 'outside' ? '#000' : (luminance(scale('color', datum['macro'])) < 0.5 ? '#fff' : '#000')"
+              },
+              "text": {"signal": "format(datum['value'], '.0%')"},
+              "baseline": {"value": "middle"},
+              "align": {
+                "signal": "datum['label_position'] === 'outside' ? 'left' : 'right'"
+              },
+              "x": {"scale": "bar_x", "field": "value", "offset": -6},
+              "y": {
+                "scale": "bar_y",
+                "field": "macro",
+                "offset": {"signal": "bandwidth('bar_y')/2"}
+              }
+            }
+          }
+        },
+        {
+          "name": "bar_label_grams",
+          "from": {"data": "dataset_updated"},
+          "type": "text",
+          "encode": {
+            "update": {
+              "opacity": {"signal": "calorie_target_is_valid ? 1 : 0"},
+              "cursor": {
+                "signal": "calorie_target_is_valid ? 'pointer' : 'default'"
+              },
+              "fill": {"value": "#000"},
+              "text": {"signal": "format(datum['grams'], '.0f')+'g'"},
+              "baseline": {"value": "middle"},
+              "align": {"value": "left"},
+              "x": {"scale": "bar_x", "field": "value", "offset": {"value": 4}},
+              "y": {
+                "scale": "bar_y",
+                "field": "macro",
+                "offset": {"signal": "bandwidth('bar_y')/2"}
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "ring_groups",
+      "type": "group",
+      "encode": {
+        "update": {
+          "x": {"signal": "width+50"},
+          "opacity": {
+            "signal": "data('dataset_updated')[0]['Total Value'] === 1 ? 0 : 0"
+          }
+        }
+      },
+      "marks": [
+        {
+          "name": "ring_group",
+          "type": "group",
+          "marks": [
+            {
+              "name": "ring",
+              "type": "arc",
+              "from": {"data": "ring_macros"},
+              "encode": {
+                "enter": {
+                  "x": {"signal": "ring_diameter / 2"},
+                  "y": {"signal": "ring_diameter / 2"},
+                  "fill": {"scale": "color", "field": "macro"}
+                },
+                "update": {
+                  "opacity": {
+                    "signal": "calorie_target_is_valid && datum['Total Value'] === 1 ? 1 : 0"
+                  },
+                  "startAngle": {"field": "startAngle"},
+                  "endAngle": {"field": "endAngle"},
+                  "innerRadius": {"signal": "ring_diameter/3"},
+                  "outerRadius": {"signal": "ring_diameter / 2"}
+                }
+              }
+            },
+            {
+              "name": "calorie_target_text",
+              "type": "text",
+              "from": {"data": "Calories"},
+              "encode": {
+                "update": {
+                  "text": {
+                    "signal": "calorie_target_is_valid && datum['actual calories'] == datum['target calories'] ? datum['actual calories'] : null"
+                  },
+                  "fontWeight": {"signal": "600"},
+                  "fill": {"value": "black"},
+                  "baseline": {"value": "middle"},
+                  "fontSize": {"signal": "ring_diameter / 5"},
+                  "align": {"value": "center"},
+                  "x": {"signal": "ring_diameter/2"},
+                  "y": {"signal": "ring_diameter/2"}
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "error_ring_group",
+          "type": "group",
+          "marks": [
+            {
+              "name": "ring_total",
+              "type": "arc",
+              "from": {"data": "ring_total"},
+              "encode": {
+                "enter": {
+                  "fill": {
+                    "signal": "datum['key'] === 'remaining' || datum['value'] === 1 ? 'transparent' : 'red'"
+                  },
+                  "fillOpacity": {"value": 0.4},
+                  "x": {"signal": "ring_diameter / 2"},
+                  "y": {"signal": "ring_diameter / 2"}
+                },
+                "update": {
+                  "opacity": {
+                    "signal": "calorie_target_is_valid && datum['Total Value'] !== 1 ? 1 : 0"
+                  },
+                  "startAngle": {"field": "startAngle"},
+                  "endAngle": {"field": "endAngle"},
+                  "innerRadius": {"signal": "ring_diameter/3"},
+                  "outerRadius": {"signal": "ring_diameter / 2"}
+                }
+              }
+            },
+            {
+              "name": "error_ring_surplus",
+              "type": "arc",
+              "from": {"data": "ring_surplus"},
+              "encode": {
+                "enter": {
+                  "fill": {
+                    "signal": "datum['key'] === 'remaining' || datum['value'] === 1 ? 'transparent' : 'red'"
+                  },
+                  "fillOpacity": {"value": 0.4},
+                  "x": {"signal": "ring_diameter / 2"},
+                  "y": {"signal": "ring_diameter / 2"}
+                },
+                "update": {
+                  "opacity": {
+                    "signal": "calorie_target_is_valid && datum['Total Value'] !== 1 ? 1 : 0"
+                  },
+                  "startAngle": {"field": "startAngle"},
+                  "endAngle": {"field": "endAngle"},
+                  "innerRadius": {"signal": "ring_diameter/3"},
+                  "outerRadius": {"signal": "ring_diameter / 2"}
+                }
+              }
+            },
+            {
+              "name": "percentage_text",
+              "type": "text",
+              "from": {"data": "Calories"},
+              "encode": {
+                "update": {
+                  "text": {
+                    "signal": "!calorie_target_is_valid ? ['Insufficient', 'Calorie', 'Target'] : datum['actual calories'] != datum['target calories'] ? datum['actual calories'] : ''"
+                  },
+                  "fontWeight": {"signal": "600"},
+                  "fill": {"value": "red"},
+                  "baseline": {"value": "middle"},
+                  "fontSize": {
+                    "signal": "!calorie_target_is_valid ? ring_diameter / 8 : ring_diameter / 5"
+                  },
+                  "align": {"value": "center"},
+                  "x": {"signal": "ring_diameter/2"},
+                  "y": {
+                    "signal": "ring_diameter/2",
+                    "offset": {"signal": "-ring_diameter/16"}
+                  }
+                }
+              }
+            },
+            {
+              "name": "percentage_helper_text",
+              "type": "text",
+              "from": {"data": "Calories"},
+              "encode": {
+                "update": {
+                  "text": {
+                    "signal": "!calorie_target_is_valid ? '' : datum['actual calories'] != datum['target calories'] ? ['macros must', '= 100%'] : ''"
+                  },
+                  "fontSize": {"signal": "ring_diameter / 12"},
+                  "baseline": {"value": "middle"},
+                  "align": {"value": "center"},
+                  "x": {"signal": "ring_diameter/2"},
+                  "y": {
+                    "signal": "ring_diameter/2",
+                    "offset": {"signal": "ring_diameter/10"}
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "data": [
+    {
+      "name": "dataset",
+      "values": [
+        {"macro": "fat", "sort": 1, "value": 0.3, "cals per gram": 9},
+        {"macro": "carbohydrate", "sort": 2, "value": 0.35, "cals per gram": 4},
+        {"macro": "protein", "sort": 3, "value": 0.35, "cals per gram": 4}
+      ]
+    },
+    {
+      "name": "dataset_updated",
+      "source": "dataset",
+      "transform": [
+        {
+          "type": "formula",
+          "expr": "datum['macro'] === macro && isValid(brushed_value) ? brushed_value : datum['value']",
+          "as": "value"
+        },
+        {
+          "type": "formula",
+          "expr": "clamp(round(datum['value']*100)/100, domain('bar_x')[0], 0.7)",
+          "as": "value"
+        },
+        {
+          "type": "formula",
+          "expr": "(calorie_target_is_valid ? (calorie_target*datum['value'])/datum['cals per gram'] : null)",
+          "as": "grams"
+        },
+        {
+          "type": "joinaggregate",
+          "ops": ["sum"],
+          "fields": ["value"],
+          "as": ["Total Value"]
+        },
+        {
+          "type": "formula",
+          "expr": "round(datum['Total Value']*100)/100",
+          "as": "Total Value"
+        }
+      ]
+    },
+    {
+      "name": "ring_macros",
+      "source": "dataset_updated",
+      "transform": [
+        {
+          "type": "pie",
+          "field": "value",
+          "startAngle": 0,
+          "endAngle": {"signal": "2*PI"},
+          "sort": false
+        },
+        {
+          "type": "project",
+          "fields": [
+            "macro",
+            "sort",
+            "value",
+            "grams",
+            "startAngle",
+            "endAngle",
+            "Total Value"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ring_total",
+      "source": "dataset_updated",
+      "transform": [
+        {
+          "type": "aggregate",
+          "ops": ["sum"],
+          "fields": ["value"],
+          "as": ["total"]
+        },
+        {"type": "formula", "expr": "1-datum['total']", "as": "remaining"},
+        {"type": "fold", "fields": ["total", "remaining"]},
+        {
+          "type": "formula",
+          "expr": "round(datum['value']*100)/100",
+          "as": "value"
+        },
+        {"type": "project", "fields": ["key", "value"]},
+        {
+          "type": "pie",
+          "field": "value",
+          "startAngle": 0,
+          "endAngle": {"signal": "2*PI"},
+          "sort": false
+        }
+      ]
+    },
+    {
+      "name": "ring_surplus",
+      "source": "ring_total",
+      "transform": [
+        {
+          "type": "filter",
+          "expr": "datum['key']==='remaining' && datum['value']<0"
+        },
+        {"type": "formula", "expr": "abs(datum['value'])", "as": "total"},
+        {"type": "formula", "expr": "1-datum['total']", "as": "remaining"},
+        {"type": "fold", "fields": ["total", "remaining"]},
+        {"type": "project", "fields": ["key", "value"]},
+        {
+          "type": "pie",
+          "field": "value",
+          "startAngle": 0,
+          "endAngle": {"signal": "2*PI"},
+          "sort": false
+        }
+      ]
+    },
+    {
+      "name": "Calories",
+      "source": "dataset_updated",
+      "transform": [
+        {
+          "type": "formula",
+          "expr": "datum['cals per gram']*datum['grams']",
+          "as": "actual calories"
+        },
+        {
+          "type": "aggregate",
+          "fields": ["actual calories"],
+          "ops": ["sum"],
+          "as": ["actual calories"]
+        },
+        {"type": "formula", "expr": "calorie_target", "as": "target calories"},
+        {
+          "type": "formula",
+          "expr": "round(datum['actual calories'] === calorie_target || datum['actual calories'] === calorie_target + 1 || datum['actual calories'] === calorie_target - 1 ? calorie_target : datum['actual calories'])",
+          "as": "actual calories"
+        }
+      ]
+    },
+    {
+      "name": "bar_extent_lines",
+      "values": [{"type": "Min"}, {"type": "Max"}],
+      "transform": [
+        {
+          "type": "formula",
+          "expr": "datum['type'] === 'Min' ? domain('bar_x')[0] : datum['value']",
+          "as": "value"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['type'] === 'Max' ? domain('bar_x')[1] : datum['value']",
+          "as": "value"
+        }
+      ]
+    }
+  ],
+  "scales": [
+    {
+      "name": "bar_x",
+      "type": "linear",
+      "zero": false,
+      "domain": {"signal": "[0.1, 0.7]"},
+      "range": {"signal": "[0,bar_area_width]"}
+    },
+    {
+      "name": "bar_y",
+      "type": "band",
+      "domain": {
+        "data": "dataset",
+        "field": "macro",
+        "sort": {"field": "sort"}
+      },
+      "range": {"signal": "[0, bar_y_step]"},
+      "paddingInner": 0.1,
+      "paddingOuter": 0.05
+    },
+    {
+      "name": "color",
+      "type": "ordinal",
+      "domain": ["fat", "protein", "carbohydrate"],
+      "range": ["#ffe066", "#70C1B3", "#247ba0"]
+    }
+  ],
+  "axes": [
+    {
+      "scale": "bar_y",
+      "orient": "left",
+      "domain": false,
+      "ticks": false,
+      "labelFontSize": 12,
+      "labelPadding": 5
+    }
+  ]
+}
