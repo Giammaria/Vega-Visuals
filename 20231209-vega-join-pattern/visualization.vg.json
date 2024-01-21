@@ -1,0 +1,247 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "description": "The enter, update, exit pattern is a core concept in d3.js. By binding data to visual elements (typically SVGs), you can create dynamic data visualizations. This approach allows for easier exploration and animation. The smooth movement of marks not only looks neat but, more importantly, works well with our pre-attentive processing. The principle is explained much better than I could ever explain it by the creator of d3.js on [this page](https://bost.ocks.org/mike/join/). The gist is that as your data changes, so can your visual marks if you bind them correctly (a concept known as object constancy). Marks bound to new data fall into the 'enter' selection. Marks bound to data that remains after a data change fall into the 'update' selection. Marks bound to data that is no longer in the dataset after a change go into the 'exit' selection. Vega includes an enter, update, exit channel, although I'll be honest, I haven't been able to find an example that actually uses all three of these. I do not believe I've ever seen a Vega example that uses 'exit.' I was able to simulate a visual example of the data join in Vega, but in reality, I'm only using the 'update' channel for everything here.",
+  "usermeta": {
+    "developedBy": "Madison Giammaria",
+    "LinkedIn": "https://www.linkedin.com/in/madison-giammaria-58463b33",
+    "email": "giammariam@gmail.com"
+  },
+  "width": 700,
+  "height": 100,
+  "signals": [
+    {"name": "duration", "value": 1500},
+    {"name": "startTime", "init": "now()"},
+    {"name": "timer", "on": [{"events": {"type": "timer"}, "update": "now()"}]},
+    {
+      "name": "iteration",
+      "value": 0,
+      "on": [
+        {
+          "events": {"signal": "timer"},
+          "update": "ceil((timer-startTime)/duration)"
+        }
+      ]
+    },
+    {
+      "name": "prevData",
+      "init": "data('currentData')",
+      "on": [
+        {"events": {"signal": "iteration"}, "update": "data('currentData')"}
+      ]
+    },
+    {
+      "name": "random",
+      "value": 0,
+      "on": [{"events": {"signal": "iteration"}, "update": "floor(random()*7)"}]
+    },
+    {
+      "name": "url",
+      "init": "'https://raw.githubusercontent.com/Giammaria/PublicFiles/master/pbi/POC/20231209_Vega_Join_Pattern/data/alphabet0.json'",
+      "on": [
+        {
+          "events": {"signal": "iteration"},
+          "update": "'https://raw.githubusercontent.com/Giammaria/PublicFiles/master/pbi/POC/20231209_Vega_Join_Pattern/data/alphabet'+toString(random)+'.json'"
+        }
+      ]
+    },
+    {"name": "previousCount", "update": "length(data('previousData'))"},
+    {
+      "name": "interpolateTime",
+      "description": "the start and end times in miliseconds for animation interpolations",
+      "on": [
+        {
+          "events": {"signal": "iteration"},
+          "update": "{'start': timer, 'end': timer+duration}"
+        }
+      ]
+    },
+    {
+      "name": "t",
+      "description": "The normalized time for easing",
+      "update": "interpolateTime ? clamp((timer-interpolateTime.start)/(interpolateTime.end-interpolateTime.start), 0, 1): null"
+    },
+    {
+      "name": "tEase",
+      "description": "The easing calculation. Currently set as easeInOutCubic",
+      "update": "t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1"
+    }
+  ],
+  "data": [
+    {
+      "name": "alphabet",
+      "url": "https://raw.githubusercontent.com/Giammaria/PublicFiles/master/pbi/POC/20231209_Vega_Join_Pattern/data/alphabet0.json"
+    },
+    {
+      "name": "currentData",
+      "url": {"signal": "url"},
+      "async": true,
+      "transform": [
+        {"type": "project", "fields": ["letter"]},
+        {"type": "aggregate", "groupby": ["letter"]},
+        {"type": "project", "fields": ["letter"]},
+        {"type": "collect", "sort": {"field": "letter"}},
+        {
+          "type": "window",
+          "ops": ["row_number"],
+          "sort": {"field": "letter", "order": "ascending"},
+          "as": ["row"]
+        },
+        {"type": "formula", "expr": "datum['row']-1", "as": "row"},
+        {"type": "formula", "expr": "timer", "as": "timestamp"},
+        {
+          "type": "formula",
+          "expr": "scale('x', datum['row'])+bandwidth('x')/2",
+          "as": "x"
+        }
+      ]
+    },
+    {
+      "name": "previousData",
+      "on": [
+        {"trigger": "iteration", "remove": true},
+        {"trigger": "iteration", "insert": "prevData"}
+      ],
+      "transform": [{"type": "collect", "sort": {"field": "letter"}}]
+    },
+    {
+      "name": "mergedData",
+      "source": ["alphabet"],
+      "transform": [
+        {"type": "collect", "sort": {"field": "letter"}},
+        {
+          "type": "lookup",
+          "key": "letter",
+          "fields": ["letter"],
+          "from": "currentData",
+          "values": ["timestamp", "x"],
+          "as": ["timestamp", "x"]
+        },
+        {
+          "type": "lookup",
+          "key": "letter",
+          "fields": ["letter"],
+          "from": "previousData",
+          "values": ["x"],
+          "as": ["x0"]
+        },
+        {
+          "type": "formula",
+          "expr": "isValid(datum['x']) && isValid(datum['x0']) ? 'update' : isValid(datum['x']) && !isValid(datum['x0']) ? 'enter' : !isValid(datum['x']) && isValid(datum['x0']) ? 'exit' : null",
+          "as": "type"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['type'] === 'exit' ? height: height/2",
+          "as": "y"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['type'] === 'enter' ? -height*0.5 : height/2",
+          "as": "y0"
+        }
+      ]
+    }
+  ],
+  "scales": [
+    {
+      "name": "x",
+      "type": "band",
+      "domain": {"data": "alphabet", "field": "row", "sort": {"field": "row"}},
+      "range": [0, {"signal": "width"}]
+    }
+  ],
+  "marks": [
+    {
+      "name": "alphabet_text",
+      "type": "text",
+      "from": {"data": "mergedData"},
+      "key": "letter",
+      "encode": {
+        "enter": {
+          "baseline": {"value": "middle"},
+          "align": {"value": "center"}
+        },
+        "update": {
+          "text": {"signal": "isValid(datum['type']) ? datum['letter'] : null"},
+          "fill": {
+            "signal": "datum['type'] === 'enter' ? 'green' : datum['type'] === 'update' ? 'black' : 'red'"
+          },
+          "fontSize": {"value": 24},
+          "x": {
+            "signal": "datum['type'] === 'enter' ? datum['x'] : datum['type'] === 'exit' ? datum['x0'] : lerp([datum['x0'], datum['x']], tEase)"
+          },
+          "y": {"signal": "lerp([datum['y0'], datum['y']], tEase)"},
+          "opacity": {
+            "signal": "datum['type'] === 'enter' ? lerp([0, 1], tEase) : datum['type'] === 'exit' ? lerp([1,0], tEase) : 1"
+          }
+        }
+      }
+    },
+    {
+      "name": "footer",
+      "type": "group",
+      "encode": {"enter": {"y": {"signal": "height+20"}}},
+      "marks": [
+        {
+          "name": "title",
+          "type": "text",
+          "encode": {
+            "enter": {
+              "text": {"value": "Simulating Data Joins in Vega"},
+              "font": {"value": "Georgia"},
+              "fontStyle": {"value": "italic"},
+              "fill": {"value": "gray"},
+              "fontSize": {"value": 18},
+              "baseline": {"value": "top"}
+            }
+          }
+        },
+        {
+          "name": "subtitle",
+          "type": "text",
+          "encode": {
+            "enter": {
+              "text": {
+                "signal": "['As seen in Mike Bostock\\'s \\'select.join\\' d3.js', 'Observable notebook (click here)']"
+              },
+              "font": {"value": "Georgia"},
+              "fill": {"value": "gray"},
+              "fontSize": {"value": 12.5},
+              "y": {"value": 22},
+              "baseline": {"value": "top"},
+              "tooltip": {
+                "value": "https://observablehq.com/@d3/selection-join"
+              },
+              "href": {"value": "https://observablehq.com/@d3/selection-join"},
+              "cursor": {"value": "pointer"}
+            }
+          }
+        },
+        {
+          "name": "vizBy",
+          "type": "text",
+          "encode": {
+            "enter": {
+              "text": {"value": "Viz by Madison Giammaria"},
+              "font": {"value": "Georgia"},
+              "fontStyle": {"value": "italic"},
+              "fill": {"value": "gray"},
+              "fontSize": {"value": 9},
+              "align": {"value": "right"},
+              "x": {"signal": "width"},
+              "y": {"value": 42},
+              "baseline": {"value": "top"},
+              "tooltip": {
+                "value": "https://www.linkedin.com/in/madison-giammaria-58463b33"
+              },
+              "href": {
+                "value": "https://www.linkedin.com/in/madison-giammaria-58463b33"
+              },
+              "cursor": {"value": "pointer"}
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
