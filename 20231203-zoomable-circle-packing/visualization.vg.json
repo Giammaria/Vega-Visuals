@@ -1,0 +1,694 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "description": "This is an extension of the typical Circle Packing layout. A circle packing layout uses containment to convey hierarchical relationships. This version incorporates a timer to facilitate zoom and fade animations, offering a technique beneficial for drill-down behavior and exploration. Using this technique, you can render various mark types, axes, legends, etc., upon zoom to provide additional insights into the selected node.",
+  "usermeta": {
+    "developedBy": "Madison Giammaria",
+    "LinkedIn": "https://www.linkedin.com/in/madison-giammaria-58463b33",
+    "email": "giammariam@gmail.com"
+  },
+  "width": 700,
+  "height": {"signal": "width"},
+  "autosize": {"contains": "content", "type": "none"},
+  "padding": {"top": 25, "right": 25, "bottom": 25, "left": 25},
+  "signals": [
+    {
+      "name": "targetYear",
+      "value": 2020,
+      "bind": {"input": "range", "min": 1970, "max": 2020, "step": 10},
+      "description": "The year tha drives the circle packing and the focused bar in eachy country's bar chart"
+    },
+    {
+      "name": "initialDuration",
+      "value": 750,
+      "description": "The duration parameter for transitions occur"
+    },
+    {
+      "name": "duration",
+      "init": "initialDuration",
+      "description": "The actual duration for transitions. This separate signal has been created to allow for slow transitions",
+      "on": [
+        {
+          "events": {
+            "type": "click",
+            "marknames": ["circles", "packedCirclesLabels", "background"]
+          },
+          "update": "(event.metaKey || event.ctrlKey ? 4 : 1) *initialDuration"
+        }
+      ],
+      "value": 0
+    },
+    {
+      "name": "root",
+      "update": "{'id': data('tree')[0]['id'], 'x': data('tree')[0]['x'], 'y': data('tree')[0]['y'], 'y0': data('tree')[0]['y0'], 'r': data('tree')[0]['r'], 'k': 1, 'hasChildren': true}",
+      "description": "The root node in the hierarchy"
+    },
+    {
+      "name": "focus",
+      "init": "root",
+      "description": "The zoomed-in node in the hierarchy",
+      "on": [
+        {
+          "events": {"type": "click", "markname": "background"},
+          "update": "{id: root['id'], 'x': root['x'], 'y': root['y'], 'y0': root['y0'], 'r': root['r'], 'k': 1,'hasChildren': root['hasChildren']}"
+        },
+        {
+          "events": {"type": "click", "markname": "circles"},
+          "update": "(focus['x'] === datum['x'] && focus['y'] === datum['y'] && focus['r'] === datum['r'] && focus['r'] !== root['r']) ? {'id': root['id'], 'x': root['x'], 'y': root['y'], 'y0': root['y0'], 'r': root['r'], 'k': 1, 'hasChildren': root['hasChildren']} : {'id': datum['id'], 'x': datum['x'], 'y': datum['y'], 'y0': datum['y0'], 'r': datum['r'], 'k': k, 'hasChildren': datum['hasChildren']}"
+        },
+        {
+          "events": {"type": "click", "markname": "packedCirclesLabels"},
+          "update": "(focus['x'] === datum['x'] && focus['y'] === datum['y'] && focus['r'] === datum['r'] && focus['r'] !== root['r']) ? {'id': root['id'], 'x': root['x'], 'y': root['y'], 'y0': root['y0'], 'r': root['r'], 'k': 1, 'hasChildren': root['hasChildren']} : {'id': datum['id'], 'x': datum['x'], 'y': datum['y'], 'y0': datum['y0'], 'r': datum['r'], 'k': k, 'hasChildren': datum['hasChildren']}"
+        },
+        {
+          "events": {"type": "click", "markname": "focusedBars"},
+          "update": "(focus['x'] === datum['x'] && focus['y'] === datum['y'] && focus['r'] === datum['r'] && focus['r'] !== root['r']) ? {'id': root['id'], 'x': root['x'], 'y': root['y'], 'y0': root['y0'], 'r': root['r'], 'k': 1, 'hasChildren': root['hasChildren']} : {'id': datum['id'], 'x': datum['x'], 'y': datum['y'], 'y0': datum['y0'], 'r': datum['r'], 'k': k, 'hasChildren': datum['hasChildren']}"
+        },
+        {
+          "events": {"type": "click", "markname": "focusedGrowthText"},
+          "update": "(focus['x'] === datum['x'] && focus['y'] === datum['y'] && focus['r'] === datum['r'] && focus['r'] !== root['r']) ? {'id': root['id'], 'x': root['x'], 'y': root['y'], 'y0': root['y0'], 'r': root['r'], 'k': 1, 'hasChildren': root['hasChildren']} : {'id': datum['id'], 'x': datum['x'], 'y': datum['y'], 'y0': datum['y0'], 'r': datum['r'], 'k': k, 'hasChildren': datum['hasChildren']}"
+        },
+        {"events": {"signal": "targetYear"}, "update": "root"}
+      ]
+    },
+    {
+      "name": "focus0",
+      "update": "data('focus0') && length(data('focus0'))>0 ? data('focus0')[0] : focus",
+      "description": "The last previous zoomed-in node in the hierarchy"
+    },
+    {
+      "name": "newFocus",
+      "update": "focus.id !== focus0.id",
+      "description": "A boolean to indicate if the zoomed-in circle has changed"
+    },
+    {
+      "name": "timer",
+      "description": "The timer to be used for transitions such as zoom, fade, etc.",
+      "on": [{"events": "timer", "update": "now()"}]
+    },
+    {
+      "name": "interpolateTime",
+      "on": [
+        {
+          "events": {
+            "type": "click",
+            "marknames": ["circles", "packedCirclesLabels", "background"]
+          },
+          "update": "{'start': timer, 'end': timer+duration}"
+        }
+      ]
+    },
+    {
+      "name": "t",
+      "description": "The normalized time for easing",
+      "update": "interpolateTime ? clamp((timer-interpolateTime.start)/(interpolateTime.end-interpolateTime.start), 0, 1): null"
+    },
+    {
+      "name": "tEase",
+      "description": "The easing calculation. Currently set as easeInOutCubic",
+      "update": "t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1"
+    },
+    {
+      "name": "interpolateTimeDelayed",
+      "description": "The delayed time for easing",
+      "on": [
+        {
+          "events": {"signal": "interpolateTime"},
+          "update": "{'start': interpolateTime.end, 'end': interpolateTime.end+duration}"
+        }
+      ]
+    },
+    {
+      "name": "tDelayed",
+      "description": "The delayed normalized time for easing",
+      "update": "interpolateTimeDelayed ? clamp((timer-interpolateTimeDelayed.start)/(interpolateTimeDelayed.end-interpolateTimeDelayed.start), 0, 1): null"
+    },
+    {
+      "name": "tEaseDelayed",
+      "description": "The delayed easing calculation. Currently set as easeInOutCubic",
+      "update": "tDelayed < 0.5 ? 4 * tDelayed * tDelayed * tDelayed : (tDelayed - 1) * (2 * tDelayed - 2) * (2 * tDelayed - 2) + 1"
+    },
+    {
+      "name": "k",
+      "value": 1,
+      "description": "The scale used for zooming based on the focused node",
+      "on": [
+        {
+          "events": [{"signal": "focus"}],
+          "update": "focus ? width/(focus.r*2) : 1"
+        }
+      ]
+    },
+    {
+      "name": "showDetails",
+      "description": "A boolean to indicate whether or not to show a Node's bar chart, flag, etc.",
+      "value": false,
+      "on": [
+        {
+          "events": {
+            "type": "click",
+            "filter": [
+              "!event.altKey && !event.shiftKey",
+              "event.button === 0"
+            ],
+            "marknames": ["circles", "packedCirclesLabels"]
+          },
+          "update": "focus['hasChildren'] ? false : datum['id'] === root['id'] || focus0['id'] !== root['id'] && focus['id'] === root['id'] ? false : true"
+        },
+        {
+          "events": {
+            "type": "click",
+            "marknames": ["circles", "packedCirclesLabels", "background"],
+            "filter": ["event.altKey || event.shiftKey", "event.button === 0"]
+          },
+          "update": "focus0['id'] === focus['id'] ? !showDetails : true"
+        },
+        {"events": {"signal": "targetYear"}, "update": "false"}
+      ]
+    },
+    {
+      "name": "detailsX",
+      "description": "The x coordinate for the focused node's details group",
+      "update": "width*0.15"
+    },
+    {
+      "name": "detailsWidth",
+      "description": "The width of the focused node's details group",
+      "update": "width-width*0.3"
+    },
+    {
+      "name": "detailsY",
+      "description": "The x coordinate for the focused node's details group",
+      "update": "root['y'] + (focus['y'] - focus['y']-(focus['r'])*0.5) * k"
+    },
+    {
+      "name": "detailsHeight",
+      "description": "The height of the focused node's details group",
+      "update": "width - width*0.5"
+    }
+  ],
+  "marks": [
+    {
+      "name": "background",
+      "description": "An ivisible rect that covers the entire canvas and sits behind everything",
+      "type": "rect",
+      "data": [{}],
+      "encode": {
+        "enter": {
+          "x": {"signal": "-padding['left']"},
+          "y": {"signal": "-padding['top']"},
+          "width": {"signal": "width+padding['left']+padding['right']"},
+          "height": {"signal": "height+padding['top']+padding['bottom']"},
+          "fillOpacity": {"value": 0}
+        }
+      }
+    },
+    {
+      "name": "packGroup",
+      "description": "The group that contains the circles and labels for the nodes",
+      "type": "group",
+      "marks": [
+        {
+          "name": "circles",
+          "description": "The packed circles",
+          "type": "symbol",
+          "from": {"data": "tree"},
+          "encode": {
+            "enter": {
+              "shape": {"value": "circle"},
+              "cursor": {"value": "pointer"},
+              "tooltip": {
+                "signal": "{title: datum['Name'] + ' - ' + datum['Year'], 'Population': format(datum['Population'], '.2s'), 'Growth Rate': datum['Growth Rate'] ? format(datum['Growth Rate'], '.0%') : 'N/A', 'Area': datum['Area']+' km²', 'Density': datum['Density']+' per km²', '% World Population': datum['Name'] !== 'World' && datum['World Population Percentage'] ? format(datum['World Population Percentage'], '.4%') : 'N/A'}"
+              }
+            },
+            "update": {
+              "x": {
+                "signal": "lerp([root['x']+ (datum['x'] - focus0['x']) * focus0['k'], root['x'] + (datum['x'] - focus['x']) * k], tEase)"
+              },
+              "y": {
+                "signal": "lerp([ root['y'] + (datum['y'] - focus0['y']) * focus0['k'],  root['y'] + (datum['y'] - focus['y']) * k], tEase)"
+              },
+              "size": {
+                "signal": "pow(2*(datum['r'] * lerp([focus0['k'], k],tEase)),2)"
+              },
+              "fill": {
+                "signal": "showDetails && focus['id'] === datum['id'] ? '#fff' : scale('color',datum['depth'])"
+              },
+              "zindex": {
+                "signal": "!showDetails ? 1 : (focus['id'] === root['id'] && datum['id'] !== 0) ? -99 : (datum['parentId'] === focus['id']) ? -99 : 1"
+              },
+              "stroke": {"signal": "datum['Color']"},
+              "strokeWidth": {
+                "signal": "focus['id'] === datum['id'] && showDetails ? 20 : 0.5"
+              },
+              "strokeOpacity": {
+                "signal": "!showDetails ? 0 : focus['id'] === root['id'] ? min(tEase, 0.25) : min(tEaseDelayed, 0.25)"
+              },
+              "fillOpacity": {"value": 1}
+            },
+            "hover": {
+              "stroke": {
+                "signal": "focus['id'] === datum['id'] && showDetails ? datum['Color'] : '#000'"
+              },
+              "strokeWidth": {
+                "signal": "focus['id'] === datum['id'] && showDetails ? 20 : 1"
+              },
+              "strokeOpacity": {
+                "signal": "focus['id'] === datum['id'] && showDetails ?  min(tEaseDelayed, 0.25) : 1"
+              }
+            }
+          }
+        },
+        {
+          "name": "packedCirclesLabels",
+          "description": "The packed circles labels",
+          "type": "text",
+          "from": {"data": "tree"},
+          "interactive": false,
+          "transform": [
+            {"type": "formula", "expr": "2*(datum['r']*k)", "as": "diameter"}
+          ],
+          "encode": {
+            "enter": {
+              "baseline": {"value": "middle"},
+              "fontWeight": {"signal": "datum['parentId'] === 0 ? 400 : 100"},
+              "align": {"value": "center"},
+              "dy": {
+                "signal": "datum['id'] === 0 ? -50 : datum['parentId'] === 0 && abs(root['y0'] - datum['y0']) < 20 ? -25 :  datum['parentId'] === 0 ? -20 : 0"
+              },
+              "fill": {
+                "signal": "(datum['id'] === 0 || datum['parentId'] === 0) ? '#000' : luminance(scale('color', datum['depth']))<=0.5 ? '#fff' : '#000'"
+              },
+              "cursor": {"value": "pointer"},
+              "tooltip": {
+                "signal": "{title: datum['Name'] + ' - ' + datum['Year'], 'Population': format(datum['Population'], '.2s'), 'Growth Rate': datum['Growth Rate'] ? format(datum['Growth Rate'], '.0%') : 'N/A', 'Area': datum['Area']+' km²', 'Density': datum['Density']+' per km²', '% World Population': datum['Name'] !== 'World' && datum['World Population Percentage'] ? format(datum['World Population Percentage'], '.4%') : 'N/A'}"
+              }
+            },
+            "update": {
+              "fontSize": {
+                "signal": "+datum['id'] === 0 ? 0 : +datum['parentId'] === 0 ?  22: (2*datum['r']*k)/width > 0.1 ? 18 : 12"
+              },
+              "text": {"signal": "datum['Abbreviation']"},
+              "x": {
+                "signal": "lerp([root['x']+ (datum['x'] - focus0['x']) * focus0['k'], root['x'] + (datum['x'] - focus['x']) * k], tEase)"
+              },
+              "y": {
+                "signal": "!datum['parentId'] ? lerp([ root['y0'] + (datum['y0'] - focus0['y0']) * focus0['k'],  root['y0'] + (datum['y0'] - focus['y0']) * k], tEase) : lerp([ root['y'] + (datum['y'] - focus0['y']) * focus0['k'],  root['y'] + (datum['y'] - focus['y']) * k], tEase)"
+              },
+              "fillOpacity": {
+                "signal": "tEase && tEase !== 1 ? 0 : showDetails ? 0 : focus['id'] === datum['id'] && !datum['hasChildren'] ? 0 : focus['id'] === 0 && (2*(datum['r']*k))/width < 0.05 || (t && t<1) || datum['parentId'] > 0 && datum['r'] < 5 ? 0 : tEaseDelayed ? tEaseDelayed : 1"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "focusedNodeDetailsGroup",
+      "description": "The group of containing the title, area, barchart, and flag, for the focused node",
+      "type": "group",
+      "from": {"data": "focusedNodeDetailsOneYear"},
+      "encode": {
+        "update": {
+          "x": {"signal": "detailsX"},
+          "y": {"signal": "detailsY"},
+          "width": {"signal": "detailsWidth"},
+          "height": {"signal": "detailsHeight"},
+          "opacity": {"signal": "!showDetails ? 0 : tEaseDelayed"}
+        }
+      },
+      "marks": [
+        {
+          "name": "focusedTitle",
+          "description": "The focused node's title",
+          "type": "text",
+          "interactive": false,
+          "encode": {
+            "update": {
+              "text": {"signal": "parent['Name']"},
+              "fontSize": {"signal": "0.045*width"},
+              "align": {"value": "center"},
+              "x": {"signal": "detailsWidth/2"},
+              "y": {"signal": "-height/9.5"},
+              "opacity": {
+                "signal": "!showDetails ? 0 : focus['id'] === root['id'] ? tEase : tEaseDelayed"
+              }
+            }
+          }
+        },
+        {
+          "name": "focusedFlag",
+          "description": "The focused node's flag (if one is provided)",
+          "type": "image",
+          "style": ["image"],
+          "interactive": false,
+          "encode": {
+            "update": {
+              "url": {
+                "signal": "(parent['flag'] ? 'data:image/png;base64,' + parent['flag'] : null)"
+              },
+              "x": {"signal": "detailsWidth/2-30"},
+              "x2": {"signal": "detailsWidth/2+30"},
+              "y": {
+                "signal": "detailsY + range('barChartY')[1] + detailsY/2-30"
+              },
+              "opacity": {
+                "signal": "!showDetails ? 0 : focus['id'] === root['id'] ? tEase : tEaseDelayed"
+              }
+            }
+          }
+        },
+        {
+          "name": "focusedAreaText",
+          "description": "The focused node's Area text",
+          "type": "text",
+          "style": ["text"],
+          "interactive": false,
+          "encode": {
+            "update": {
+              "align": {"value": "center"},
+              "baseline": {"value": "middle"},
+              "text": {"signal": "'Area: '+parent['Area']+ ' km²'"},
+              "x": {"signal": "detailsWidth/2"},
+              "y": {"signal": "-height/9.5", "offset": 30},
+              "fontSize": {"signal": "0.025*width"},
+              "fontWeight": {"value": "lighter"},
+              "opacity": {
+                "signal": "!showDetails ? 0 : focus['id'] === root['id'] ? tEase : tEaseDelayed"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "focusedBars",
+      "description": "The focused node's bars",
+      "type": "rect",
+      "style": ["bar"],
+      "from": {"data": "focusedNodeDetails"},
+      "encode": {
+        "update": {
+          "fillOpacity": {
+            "signal": "datum['Year'] === targetYear ? 0.75 : 0.35"
+          },
+          "fill": {"signal": "'Black'"},
+          "tooltip": {
+            "signal": "{title: datum['Name'] + ' - ' + datum['Year'], 'Population': format(datum['Population'], '.2s'), 'Growth Rate': datum['Growth Rate'] ? format(datum['Growth Rate'], '.0%') : 'N/A', 'Area': datum['Area']+' km²', 'Density': datum['Density']+' per km²', '% World Population': datum['Name'] !== 'World' && datum['World Population Percentage'] ? format(datum['World Population Percentage'], '.4%') : 'N/A'}"
+          },
+          "x": {"scale": "barChartX", "field": "Year"},
+          "width": {"signal": "max(0.25, bandwidth('barChartX'))"},
+          "y": {"scale": "barChartY", "field": "Population"},
+          "y2": {"signal": "range('barChartY')[0]"},
+          "cornerRadiusTopLeft": {"value": 7.5},
+          "cornerRadiusTopRight": {"value": 7.5},
+          "opacity": {
+            "signal": "!showDetails ? 0 : focus['id'] === root['id'] ? tEase : tEaseDelayed"
+          }
+        }
+      }
+    },
+    {
+      "name": "focusedGrowthText",
+      "description": "The focused node's growth indicator text",
+      "type": "text",
+      "from": {"data": "focusedNodeDetails"},
+      "encode": {
+        "update": {
+          "fillOpacity": {"signal": "datum['Year'] === targetYear ? 1 : 0.5"},
+          "fill": {
+            "signal": "datum['Growth Rate'] < 0.01 && datum['Growth Rate'] > -0.01 ? '#000' : datum['Growth Rate'] > 0 ? 'green' : 'red'"
+          },
+          "text": {
+            "signal": "datum['Growth Rate'] ? (datum['Growth Rate'] < 0.01 && datum['Growth Rate'] > -0.01 ? '' : datum['Growth Rate'] > 0 ? '▲ ' : '▼ ' ) + format(abs(datum['Growth Rate']), '.0%') : null"
+          },
+          "fontSize": {"value": 20},
+          "tooltip": {
+            "signal": "{title: datum['Name'] + ' - ' + datum['Year'], 'Population': format(datum['Population'], '.2s'), 'Growth Rate': datum['Growth Rate'] ? format(datum['Growth Rate'], '.0%') : 'N/A', 'Area': datum['Area']+' km²', 'Density': datum['Density']+' per km²', '% World Population': datum['Name'] !== 'World' && datum['World Population Percentage'] ? format(datum['World Population Percentage'], '.4%') : 'N/A'}"
+          },
+          "x": {"scale": "barChartX", "field": "Year", "band": 0.5},
+          "y": {"scale": "barChartY", "field": "Population", "offset": -15},
+          "align": {"value": "center"},
+          "baseline": {"value": "middle"},
+          "opacity": {
+            "signal": "!showDetails ? 0 : focus['id'] === root['id'] ? tEase : tEaseDelayed"
+          }
+        }
+      }
+    }
+  ],
+  "scales": [
+    {
+      "name": "color",
+      "type": "ordinal",
+      "domain": {
+        "data": "tree",
+        "field": "depth",
+        "sort": {"order": "ascending"}
+      },
+      "range": ["rgb(187,187,187)", "rgb(136, 136, 136)", "rgb(88,88,88)"]
+    },
+    {
+      "name": "barChartX",
+      "type": "band",
+      "domain": {
+        "fields": [{"data": "focusedNodeDetails", "field": "Year"}],
+        "sort": true
+      },
+      "range": [{"signal": "detailsX"}, {"signal": "detailsX+detailsWidth"}],
+      "paddingInner": 0.2,
+      "paddingOuter": 0.1
+    },
+    {
+      "name": "barChartY",
+      "type": "linear",
+      "domain": {
+        "fields": [{"data": "focusedNodeDetails", "field": "Population"}]
+      },
+      "range": [{"signal": "detailsY+detailsHeight"}, {"signal": "detailsY"}],
+      "nice": true,
+      "zero": true
+    }
+  ],
+  "axes": [
+    {
+      "scale": "barChartX",
+      "orient": "bottom",
+      "grid": false,
+      "domain": false,
+      "labelAngle": 0,
+      "offset": {"signal": "-detailsY"},
+      "labelFontSize": 14,
+      "ticks": false,
+      "labelBaseline": "top",
+      "encode": {
+        "labels": {
+          "update": {
+            "fontWeight": {"signal": "+datum.label === targetYear ? 800 : 400"},
+            "opacity": {
+              "signal": "!showDetails ? 0 : focus['id'] === root['id'] ? tEase : tEaseDelayed"
+            }
+          }
+        }
+      },
+      "zindex": 99
+    },
+    {
+      "scale": "barChartY",
+      "orient": "left",
+      "title": "Population",
+      "titlePadding": 20,
+      "grid": false,
+      "domain": false,
+      "format": ".2s",
+      "labelAngle": 0,
+      "offset": {"signal": "-detailsX"},
+      "labelFontSize": 14,
+      "ticks": false,
+      "tickCount": {"signal": "showDetails ? null : 0"},
+      "titleFontSize": 14,
+      "labelAlign": "right",
+      "labelOverlap": true,
+      "zindex": 99,
+      "labelOpacity": {
+        "signal": "!showDetails ? 0 : focus['id'] === root['id'] ? tEase : tEaseDelayed"
+      },
+      "titleOpacity": {
+        "signal": "!showDetails ? 0 : focus['id'] === root['id'] ? tEase : tEaseDelayed"
+      }
+    }
+  ],
+  "data": [
+    {
+      "name": "source_0",
+      "url": "https://raw.githubusercontent.com/Giammaria/PublicFiles/master/pbi/POC/20231128_Zoomable_Packed_Circles/data/country_flags_base64.json",
+      "format": {"type": "json"}
+    },
+    {
+      "name": "dataset",
+      "url": "https://raw.githubusercontent.com/Giammaria/PublicFiles/master/pbi/POC/20231128_Zoomable_Packed_Circles/data/world_population_nodes.json",
+      "format": {
+        "type": "json",
+        "parse": {
+          "id": "number",
+          "parentId": "number",
+          "Area": "number",
+          "2020 Population": "number",
+          "2010 Population": "number",
+          "2000 Population": "number",
+          "1990 Population": "number",
+          "1980 Population": "number",
+          "1970 Population": "number"
+        }
+      },
+      "transform": [
+        {
+          "type": "formula",
+          "expr": "isNaN(datum['parentId']) ? null : datum['parentId']",
+          "as": "parentId"
+        },
+        {
+          "type": "formula",
+          "expr": "!datum['parentId'] || datum['parentId'] === 0",
+          "as": "hasChildren"
+        },
+        {
+          "type": "lookup",
+          "from": "source_0",
+          "key": "isoAlpha3",
+          "fields": ["CCA3"],
+          "values": ["isoAlpha2", "flag"]
+        },
+        {
+          "type": "formula",
+          "expr": "datum['isoAlpha2'] || (datum['parentId'] == 0 ? datum['Name'] : null)",
+          "as": "Abbreviation"
+        },
+        {
+          "type": "fold",
+          "fields": [
+            "2020 Population",
+            "2010 Population",
+            "2000 Population",
+            "1990 Population",
+            "1980 Population",
+            "1970 Population"
+          ],
+          "as": ["Year", "Population"]
+        },
+        {"type": "formula", "expr": "+slice(datum['Year'], 0,4)", "as": "Year"},
+        {
+          "type": "aggregate",
+          "groupby": [
+            "id",
+            "parentId",
+            "hasChildren",
+            "Type",
+            "Name",
+            "Abbreviation",
+            "Area",
+            "Year",
+            "Population",
+            "flag",
+            "Color"
+          ],
+          "ops": ["values"],
+          "fields": ["id"],
+          "as": ["values"]
+        },
+        {
+          "type": "formula",
+          "expr": "+format(datum['Population']/datum['Area'], '.4f')",
+          "as": "Density"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['Type'] === 'Country/Territory' ? datum['Population'] : 0",
+          "as": "World Population"
+        },
+        {
+          "type": "joinaggregate",
+          "as": ["World Population"],
+          "ops": ["sum"],
+          "fields": ["World Population"],
+          "groupby": ["Year"]
+        },
+        {
+          "type": "window",
+          "params": [null],
+          "as": ["Growth Rate"],
+          "ops": ["lag"],
+          "fields": ["Population"],
+          "sort": {"field": ["Year"], "order": ["ascending"]},
+          "groupby": ["Name"]
+        },
+        {
+          "type": "formula",
+          "expr": "datum['Growth Rate'] ? (datum['Population']-datum['Growth Rate'])/datum['Growth Rate'] : null",
+          "as": "Growth Rate"
+        },
+        {
+          "type": "formula",
+          "expr": "datum['Population']/datum['World Population']",
+          "as": "World Population Percentage"
+        }
+      ]
+    },
+    {
+      "name": "nodesForSelectedYear",
+      "source": "dataset",
+      "transform": [{"type": "filter", "expr": "+datum['Year'] == targetYear"}]
+    },
+    {
+      "name": "tree",
+      "source": "nodesForSelectedYear",
+      "transform": [
+        {"type": "stratify", "key": "id", "parentKey": "parentId"},
+        {
+          "type": "pack",
+          "field": "Population",
+          "sort": {"field": "Population"},
+          "size": [{"signal": "width"}, {"signal": "height"}]
+        },
+        {"type": "formula", "expr": "datum['y']-datum['r']+10", "as": "y0"}
+      ]
+    },
+    {
+      "name": "focus0",
+      "on": [{"trigger": "focus", "insert": "focus"}],
+      "transform": [
+        {"type": "formula", "expr": "now()", "as": "now"},
+        {
+          "type": "window",
+          "ops": ["row_number"],
+          "as": ["row"],
+          "sort": {"field": "now", "order": "descending"}
+        },
+        {"type": "filter", "expr": "datum['row'] ? datum['row'] == 2 : true "},
+        {
+          "type": "project",
+          "fields": ["id", "x", "y", "y0", "r", "hasChildren"]
+        },
+        {"type": "formula", "expr": "width/(datum['r']*2)", "as": "k"}
+      ]
+    },
+    {
+      "name": "focusedNodeDetails",
+      "source": "dataset",
+      "transform": [
+        {"type": "filter", "expr": "showDetails && datum['id']=== focus['id']"},
+        {
+          "type": "lookup",
+          "from": "tree",
+          "key": "id",
+          "fields": ["id"],
+          "values": ["x", "y", "r", "depth", "children", "y0"]
+        }
+      ]
+    },
+    {
+      "name": "focusedNodeDetailsOneYear",
+      "source": "focusedNodeDetails",
+      "transform": [{"type": "filter", "expr": "datum['Year'] === targetYear"}]
+    }
+  ]
+}
