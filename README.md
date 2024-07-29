@@ -12,7 +12,7 @@ A hierarchical Gantt visual heavily inspired by [Davide Bacci's Gantt](https://g
 |Vega|Power BI|
 |-|-|
 |[Open the Chart with the Vega Editor](https://vega.github.io/editor/#/gist/131055e961f6838daf4906a09406bc13/spec.json/view)|[Open the Chart in Power BI](https://app.powerbi.com/view?r=eyJrIjoiNjljZTEzMmItOWQzMC00ZjFhLWE0ZTktNThlODc3YzEyZjQ2IiwidCI6ImRmODY3OWNkLWE4MGUtNDVkOC05OWFjLWM4M2VkN2ZmOTVhMCJ9&chromeless=true)
-|[Open the Vega Specification](20240724-hierarchical-gantt-chart\visualization.vg.json)|[Download the .pbix](20240724-hierarchical-gantt-chart\hierarchical_gantt_deneb_vega_v1.pbix)|
+|[Open the Vega Specification](20240724-hierarchical-gantt-chart\visualization.vg.json)|[Download the .pbix](20240724-hierarchical-gantt-chart/hierarchical_gantt_deneb_vega_v1.pbix)|
 
 ‎
 
