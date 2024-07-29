@@ -5,7 +5,18 @@ This is a growing compilation of visuals that I have created in [Vega](https://v
 <small><a href="https://www.freepik.com/free-psd/web-pages-mock-up_1195506.htm#page=3&query=digital%20showcase%20collage&position=15&from_view=search&track=ais&uuid=41600ac6-bd59-4a1e-8753-dc7d6ee6f473#position=15&page=3&query=digital%20showcase%20collage">PSD template by aleksandr_samochernyi</a></small>
 
 ‎
-## Interactive Radial / Line Combo Chart <small><sup><em><code>New!</code></em></sup></small>
+## Hierarchical Gantt <small><sup><em><code>New!</code></em></sup></small>
+
+![Vega-Visuals](20240724-hierarchical-gantt-chart\artifacts\screenshot.png)
+A hierarchical Gantt visual heavily inspired by [Davide Bacci's Gantt](https://github.com/PBI-David/Deneb-Showcase?tab=readme-ov-file#gantt-chart). This Gantt takes a [hierarchical (tree) data structure](https://medium.com/@pixelprofits/data-structures-deep-dive-4-8-trees-hierarchical-data-representation-f7deba97e294), allowing for staggered parent-child relationships. The user is able to explore the hierarchy at different levels, as well as different date granularities. Various controls and shortcut capabilities have been added to facilitate exploration.
+|Vega|Power BI|
+|-|-|
+|[Open the Chart with the Vega Editor](https://vega.github.io/editor/#/gist/131055e961f6838daf4906a09406bc13/spec.json/view)|[Open the Chart in Power BI]()
+|[Open the Vega Specification](20240724-hierarchical-gantt-chart\visualization.vg.json)|[Download the .pbix](20240724-hierarchical-gantt-chart\hierarchical_gantt_deneb_vega_v1.pbix)|
+
+‎
+
+## Interactive Radial / Line Combo Chart
 
 ![Vega-Visuals](20240118-radial-line-combo/artifacts/screenshot.png)
 A radial / line combo chart that displays Temperature vs Energy Consumption for the given year. Focus can be shifted to a specific week via mouseover. The data is entirely fictional, and the visual was inspired by the [Sunny Edinburgh](https://sunny-edi.herokuapp.com/) project.
