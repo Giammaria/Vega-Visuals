@@ -2,6 +2,7 @@
   "$schema": "https://vega.github.io/schema/vega/v5.json",
   "background": "#fff",
   "usermeta": {
+    "version": "01.01",
     "developedBy": "Madison Giammaria",
     "gitHub": "https://github.com/Giammaria",
     "linkedIn": "https://www.linkedin.com/in/madison-giammaria-58463b33",
@@ -17,7 +18,7 @@
       }
     ]
   },
-  "height": 425,
+  "height": 500,
   "signals": [
     {
       "name": "configDesiredTotalVisualWidth",
@@ -27,7 +28,7 @@
     {
       "name": "configDateStepSizePercentInital",
       "description": "The initial date granularity % (value between 0 and 1). Once your data is loaded, you'll want to adjust the date granularity slider to your desired view, then look at the 'dateStepSizePercent' signal in the Signal Viewer pane. Use that value as the initial value here.",
-      "value": 0.656
+      "value": 0.657
     },
     {
       "name": "configIncludeRoot",
@@ -41,7 +42,7 @@
     },
     {
       "name": "configIncludedLeftHandColumns",
-      "description": "array of column titles to be included. 'name' must be included. 'startDate', 'endDate', 'duration', and 'progress' are all optional']",
+      "description": "array of column titles to be included. 'name' must be included. 'startDate', 'endDate', 'duration', and 'progress' are all 'optional'",
       "value": ["name", "startDate", "endDate", "duration", "progress"]
     },
     {
@@ -104,7 +105,10 @@
       "description": "boolean to indicate whether the info icon is currently visible",
       "init": "configInfo.enabled",
       "on": [
-        {"events": {"type": "dblclick"}, "update": "!configInfo.enabled ? false : !showInfoIcon"}
+        {
+          "events": {"type": "dblclick"},
+          "update": "!configInfo.enabled ? false : !showInfoIcon"
+        }
       ]
     },
     {
@@ -277,7 +281,7 @@
       "name": "horizontalScrollbarMouseDown",
       "description": "boolean indicating whether the horizontal scrollbar is currently being clicked",
       "value": false,
-      "on":  [
+      "on": [
         {
           "events": "@group_horizontalScrollbar:pointerdown",
           "update": "configHorizontalScrollbar.enabled"
@@ -1397,9 +1401,7 @@
           "angle": {"value": 90},
           "fill": {"signal": "configGantt.todayLine.stroke"},
           "fillOpacity": {"value": 0.75},
-          "opacity": {
-            "signal": "!isValid(datum.x) ? 0 : datum.labelOpacity"
-          }
+          "opacity": {"signal": "!isValid(datum.x) ? 0 : datum.labelOpacity"}
         }
       }
     },
@@ -2048,9 +2050,7 @@
           "cursor": {"signal": "showInfoIcon ? 'pointer' : 'default'"},
           "opacity": {"signal": "showInfoIcon ? 1 : 0"}
         },
-        "hover": {
-          "fill": {"signal": "configInfo.hoverFill"}
-        }
+        "hover": {"fill": {"signal": "configInfo.hoverFill"}}
       }
     }
   ],
@@ -2197,12 +2197,12 @@
         },
         {
           "type": "formula",
-          "expr": "toDate(utcFormat(datum.startDate, '%m/%d/%Y')+' 00:00:00.000')",
+          "expr": "toDate(utcFormat(datum.startDate, '%Y-%m-%d'))",
           "as": "startDate"
         },
         {
           "type": "formula",
-          "expr": "toDate(utcFormat(datum.endDate, '%m/%d/%Y')+' 00:00:00.000')",
+          "expr": "toDate(utcFormat(datum.endDate, '%Y-%m-%d'))",
           "as": "endDate"
         },
         {"type": "window", "ops": ["row_number"], "as": ["sort"]},
@@ -2241,7 +2241,7 @@
         {"type": "flatten", "fields": ["date"]},
         {
           "type": "formula",
-          "expr": "utcFormat(datum.date, '%Y%m%d')",
+          "expr": "utcFormat(datum.date, '%Y-%m-%d')",
           "as": "dateKey"
         },
         {
@@ -2251,7 +2251,7 @@
         },
         {
           "type": "formula",
-          "expr": "utcFormat(datum.date, '%m-%y')",
+          "expr": "utcFormat(datum.date, '%y-%m')",
           "as": "monthYearFormatted"
         },
         {
@@ -2283,6 +2283,23 @@
           "frame": [null, null],
           "as": ["yearDR"]
         }
+      ]
+    },
+    {
+      "name": "monthLookup",
+      "values": [
+        {"monthAbbrev": "Jan", "daysInMonth": 31},
+        {"monthAbbrev": "Feb", "daysInMonth": 28},
+        {"monthAbbrev": "Mar", "daysInMonth": 31},
+        {"monthAbbrev": "Apr", "daysInMonth": 30},
+        {"monthAbbrev": "May", "daysInMonth": 31},
+        {"monthAbbrev": "Jun", "daysInMonth": 30},
+        {"monthAbbrev": "Jul", "daysInMonth": 31},
+        {"monthAbbrev": "Aug", "daysInMonth": 31},
+        {"monthAbbrev": "Sep", "daysInMonth": 30},
+        {"monthAbbrev": "Oct", "daysInMonth": 31},
+        {"monthAbbrev": "Nov", "daysInMonth": 30},
+        {"monthAbbrev": "Dec", "daysInMonth": 31}
       ]
     },
     {
@@ -2524,8 +2541,39 @@
         },
         {
           "type": "formula",
-          "expr": "+utcFormat(timeOffset('day', timeOffset('month', toDate(utcFormat(datum.startDate, '%m')+'/01/'+utcFormat(datum.startDate, '%Y')), 1),-1), '%d')",
+          "expr": "utcFormat(datum.startDate, '%b')",
+          "as": "startAbbrev"
+        },
+        {
+          "type": "formula",
+          "expr": "utcFormat(datum.endDate, '%b')",
+          "as": "endAbbrev"
+        },
+        {
+          "type": "lookup",
+          "from": "monthLookup",
+          "key": "monthAbbrev",
+          "fields": ["startAbbrev"],
+          "values": ["daysInMonth"],
+          "as": ["daysInStartDateMonth"]
+        },
+        {
+          "type": "lookup",
+          "from": "monthLookup",
+          "key": "monthAbbrev",
+          "fields": ["endAbbrev"],
+          "values": ["daysInMonth"],
+          "as": ["daysInEndDateMonth"]
+        },
+        {
+          "type": "formula",
+          "expr": "(datum.startAbbrev === 'Feb' && +utcFormat(datum.startDate, '%Y')%4 === 0 ? 1 : 0) + datum.daysInStartDateMonth",
           "as": "daysInStartDateMonth"
+        },
+        {
+          "type": "formula",
+          "expr": "(datum.endAbbrev === 'Feb' && +utcFormat(datum.endDate, '%Y')%4 === 0 ? 1 : 0) + datum.daysInEndDateMonth",
+          "as": "daysInEndDateMonth"
         },
         {
           "type": "formula",
@@ -2534,17 +2582,12 @@
         },
         {
           "type": "formula",
-          "expr": "+utcFormat(timeOffset('day', timeOffset('month', toDate(utcFormat(datum.endDate, '%m')+'/01/'+utcFormat(datum.endDate, '%Y')), 1),-1), '%d')",
-          "as": "daysInEndDateMonth"
-        },
-        {
-          "type": "formula",
           "expr": "+utcFormat(datum.endDate, '%d')/datum.daysInEndDateMonth",
           "as": "endDatePercentageOfMonth"
         },
         {
           "type": "formula",
-          "expr": "toDate(utcFormat(datum.startDate+((datum.endDate-datum.startDate)*datum.decimalPercentComplete), '%m/%d/%Y'))",
+          "expr": "toDate(utcFormat(datum.startDate+((datum.endDate-datum.startDate)*datum.decimalPercentComplete), '%Y-%m-%d'))",
           "as": "progressDate"
         },
         {
@@ -2585,12 +2628,12 @@
         },
         {
           "type": "formula",
-          "expr": "toDate([utcFormat(datum.startDate, '%m/%d/%Y'), utcFormat(datum.startDate, '%m')+'/01/'+utcFormat(datum.startDate, '%Y'), '01/01/'+utcFormat(datum.startDate, '%Y')][indexof(['day', 'month', 'year'], datum.dateGranularity)]+' 00:00:00.000')",
+          "expr": "toDate([utcFormat(datum.startDate, '%Y-%m-%d'), utcFormat(datum.startDate, '%Y-%m-01'), utcFormat(datum.startDate, '%Y-01-01')][indexof(['day', 'month', 'year'], datum.dateGranularity)])",
           "as": "startDateTick"
         },
         {
           "type": "formula",
-          "expr": "utcFormat(datum.startDateTick, '%Y%m%d')",
+          "expr": "utcFormat(datum.startDateTick, '%Y-%m-%d')",
           "as": "startDateKey"
         },
         {
@@ -2603,12 +2646,12 @@
         },
         {
           "type": "formula",
-          "expr": "toDate([utcFormat(datum.endDate, '%m/%d/%Y'), utcFormat(datum.endDate, '%m')+'/01/'+utcFormat(datum.endDate, '%Y'), '01/01/'+utcFormat(datum.endDate, '%Y')][indexof(['day', 'month', 'year'], datum.dateGranularity)]+' 00:00:00.000')",
+          "expr": "toDate([utcFormat(datum.endDate, '%Y-%m-%d'), utcFormat(datum.endDate, '%Y-%m-01'), utcFormat(datum.endDate, '%Y-01-01')][indexof(['day', 'month', 'year'], datum.dateGranularity)])",
           "as": "endDateTick"
         },
         {
           "type": "formula",
-          "expr": "utcFormat(datum.endDateTick, '%Y%m%d')",
+          "expr": "utcFormat(datum.endDateTick, '%Y-%m-%d')",
           "as": "endDateKey"
         },
         {
@@ -2621,7 +2664,7 @@
         },
         {
           "type": "formula",
-          "expr": "toDate([utcFormat(datum.progressDate, '%m/%d/%Y'), utcFormat(datum.progressDate, '%m')+'/01/'+utcFormat(datum.progressDate, '%Y'), '01/01/'+utcFormat(datum.progressDate, '%Y')][indexof(['day', 'month', 'year'], datum.dateGranularity)]+' 00:00:00.000')",
+          "expr": "toDate([utcFormat(datum.progressDate, '%Y-%m-%d'), utcFormat(datum.progressDate, '%Y-%m-01'), utcFormat(datum.progressDate, '%Y-01-01')][indexof(['day', 'month', 'year'], datum.dateGranularity)])",
           "as": "progressDateTick"
         },
         {
@@ -2631,7 +2674,7 @@
         },
         {
           "type": "formula",
-          "expr": "utcFormat(datum.progressDateTick, '%Y%m%d')",
+          "expr": "utcFormat(datum.progressDateTick, '%Y-%m-%d')",
           "as": "progressDateKey"
         },
         {
@@ -2728,7 +2771,7 @@
         },
         {
           "type": "formula",
-          "expr": "utcFormat(datum.dateTick, '%Y%m%d')",
+          "expr": "utcFormat(datum.dateTick, '%Y-%m-%d')",
           "as": "dateKey"
         },
         {
