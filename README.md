@@ -12,7 +12,7 @@ A recreation of the [macrodata refinement](https://severance.wiki/macrodata_refi
 |Vega|Power BI|
 |-|-|
 |[Open the Chart with the Vega Editor](https://vega.github.io/editor/?#/gist/82b2d2d2421992d89d5877459b166ec1/spec.json/view)|[Open the Chart in Power BI](https://app.powerbi.com/view?r=eyJrIjoiZDU2NWViOTktMWRhMC00MmYyLTgxMzItNmFkYWZjYzE1ODQ0IiwidCI6ImRmODY3OWNkLWE4MGUtNDVkOC05OWFjLWM4M2VkN2ZmOTVhMCJ9&chromeless=true)
-|[Open the Vega Specification](20250224-macrodata-refinement/visualization.vg.json)|[Download the .pbix](<20250224-macrodata-refinement\Macrodata Refinement v1.0.pbix>)|
+|[Open the Vega Specification](20250224-macrodata-refinement/visualization.vg.json)|[Download the .pbix](<20250224-macrodata-refinement/Macrodata Refinement v1.0.pbix>)|
 
 ‎
 ## Hierarchical Gantt
