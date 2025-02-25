@@ -8,7 +8,7 @@ This is a growing compilation of visuals that I have created in [Vega](https://v
 ## Macrodata Refinement <small><sup><em><code>New!</code></em></sup></small>
 
 ![Vega-Visuals](20250224-macrodata-refinement/artifacts/screenshot.png)
-A recreation of the [macrodata refinement](https://severance.wiki/macrodata_refinement) UI from the hit TV show, [Severence](https://tv.apple.com/us/show/severance/umc.cmc.1srk2goyh2q2zdxcx605w8vtx).
+A recreation of the [macrodata refinement](https://severance.wiki/macrodata_refinement) UI from the hit TV show, [Severance](https://tv.apple.com/us/show/severance/umc.cmc.1srk2goyh2q2zdxcx605w8vtx).
 |Vega|Power BI|
 |-|-|
 |[Open the Chart with the Vega Editor](https://vega.github.io/editor/?#/gist/82b2d2d2421992d89d5877459b166ec1/spec.json/view)|[Open the Chart in Power BI](https://app.powerbi.com/view?r=eyJrIjoiZDU2NWViOTktMWRhMC00MmYyLTgxMzItNmFkYWZjYzE1ODQ0IiwidCI6ImRmODY3OWNkLWE4MGUtNDVkOC05OWFjLWM4M2VkN2ZmOTVhMCJ9&chromeless=true)
