@@ -9,7 +9,7 @@ This is a growing compilation of visuals that I have created in [Vega](https://v
 
 ## Hierarchical Bar Chart <small><sup><em><code>New!</code></em></sup></small>
 
-![Vega-Visuals](20251110-hierarchical-bar-chart\artifacts\screenrecording.gif)
+![Vega-Visuals](20251110-hierarchical-bar-chart\artifacts\screenshot.png)
 This chart is an animated, drillable hierarchical horizontal bar view. The user provides a flat table of {id, parentId, label, value?}, and it turns that into a tree you can explore one level at a time. At any moment it shows “the children of the node the user is looking at” as horizontal bars, ordered by a user-toggleable sort. When you drill down or up, the bars animate so you can see what changed.
 |Vega|Power BI|
 |-|-|
