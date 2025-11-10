@@ -14,7 +14,7 @@ This chart is an animated, drillable hierarchical horizontal bar view. The user 
 |Vega|Power BI|
 |-|-|
 |[Open the Chart with the Vega Editor](https://vega.github.io/editor/#/gist/891d868846eab2342ffa256626f047ce/spec.json/view)|[Open the Chart in Power BI](https://app.powerbi.com/view?r=eyJrIjoiYjMzNWZkNmItY2Y5Yi00YmYzLWEyYmQtMmZiOTk3ZTAwZmM5IiwidCI6ImRmODY3OWNkLWE4MGUtNDVkOC05OWFjLWM4M2VkN2ZmOTVhMCJ9&chromeless=true)
-|[Open the Vega Specification](20251110-hierarchical-bar-chart\visualization.vg.json)|[Download the .pbix](<20251110-hierarchical-bar-chart\Hierarchical Bar Chart v1.0.pbix>)|
+|[Open the Vega Specification](20251110-hierarchical-bar-chart\visualization.vg.json)|[Download the .pbix](<20251110-hierarchical-bar-chart/Hierarchical Bar Chart v1.0.pbix>)|
 
 ‎
 
