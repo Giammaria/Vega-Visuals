@@ -1,0 +1,1745 @@
+{
+  "usermeta": {
+    "$schema": "https://vega.github.io/schema/vega/v6.json",
+    "version": "01.01",
+    "developedBy": "Madison Giammaria",
+    "gitHub": "https://github.com/Giammaria",
+    "linkedIn": "https://www.linkedin.com/in/madison-giammaria-58463b33",
+    "email": "giammariam@gmail.com",
+    "visualName": "Hierarchical Bar Chart",
+    "visualDescription": "This chart is an animated, drillable hierarchical horizontal bar view. The user provides a flat table of {id, parentId, label, value?}, and it turns that into a tree you can explore one level at a time. At any moment it shows “the children of the node the user is looking at” as horizontal bars, ordered by a user-toggleable sort. When you drill down or up, the bars animate so you can see what changed."
+  },
+  "title": { "text": { "signal": "configAxes.x.title.text" }, "orient": "top" },
+  "padding": 5,
+  "autosize": { "contains": "padding", "type": "fit-x" },
+  "background": "#fff",
+  "signals": [
+    {
+      "name": "configIsPowerBIVisual",
+      "description": "Set to true when the visual is hosted inside Power BI so sizing/layout can use the container instead of fixed chart height.",
+      "value": false
+    },
+    {
+      "name": "configDesiredWidth",
+      "description": "Total canvas width. Used when not in Power BI to decide how wide the visual should be.",
+      "init": "800"
+    },
+    {
+      "name": "configDesiredChartHeight",
+      "description": "Base chart body height (not counting header/footer). Used when not in Power BI to decide how tall the scrollable area should be.",
+      "init": "150"
+    },
+    {
+      "name": "configFields",
+      "description": "Maps incoming data field names into the fields this spec expects (id, parentId, label/name, value). Lets the spec work even if upstream field names change.",
+      "update": "{id: 'id', parentId: 'parentId', name: 'name', label: 'name', 'value': null}"
+    },
+    {
+      "name": "configColorScheme",
+      "description": "Central color configuration for axes and bars (parent vs leaf). Marks read colors from here instead of hardcoding.",
+      "init": "{axes: {x: {text: {fill: '#555'}, grid: {stroke: '#dddddd'}, ticks: {stroke: '#dddddd'}}, y: {text: {fill: '#555'}}}, bars: {parent: {rgbFill: 'rgb(166, 204, 237)', rgbStroke: 'rgb(51, 116, 171)'}, leaf: {'rgbFill': 'rgb(238,238,238)', rgbStroke: 'rgb(200,200,200)'}}}"
+    },
+    {
+      "name": "configRow",
+      "description": "Row-level layout settings. Currently only rowHeight, which is the vertical space allocated per node.",
+      "init": "{rowHeight: 25}"
+    },
+    {
+      "name": "configAnimationDuration",
+      "description": "Animation timing in milliseconds for node transitions. The node value is used by the 3-phase drill/sort animation signals.",
+      "init": "{node: 1000}"
+    },
+    {
+      "name": "configAxes",
+      "description": "Visual configuration for x and y axes (axis height, padding, title text, label formatting). Used by the axis group.",
+      "init": "{x: {height: 20, horizontalOuterPadding: 20, title: {text: 'Entity Counts'}, labels: {format: '.0f', wholeNumbersOnly: true}}, y: {width: 0.2*width, labels: {padding: 2.5}}}"
+    },
+    {
+      "name": "configVerticalScrollbar",
+      "description": "Computed scrollbar configuration (enabled, track size, handle size, colors) based on actualHeight vs adjustedHeight.",
+      "update": "{enabled: actualHeight>adjustedHeight ,innerPadding: 10, track: {width: 10, height: extent([actualHeight, adjustedHeight])[0], fill: '#F3F3F3'}, handle: {height: max((adjustedHeight/actualHeight)*extent([actualHeight, adjustedHeight])[0], 30), fill: '#ddd', hover: {fill: '#888'}}}"
+    },
+    {
+      "name": "configHeader",
+      "description": "Fixed header sizing and offset at the top of the chart. Contributes to the final chart height.",
+      "update": "{height: 10, verticalOffset: 2.5}"
+    },
+    {
+      "name": "configFooter",
+      "description": "Fixed footer sizing and offset at the bottom of the chart. Contributes to the final chart height.",
+      "update": "{height: 25, verticalOffset: 2.5}"
+    },
+    {
+      "name": "timer",
+      "description": "Continuously-updating clock signal (via the timer event) used to drive all time-based animations.",
+      "init": "now()",
+      "on": [
+        { "events": { "type": "timer", "throttle": 15 }, "update": "now()" }
+      ]
+    },
+    {
+      "name": "plotAreaDimensions",
+      "description": "Derived width/height of the actual plot area after subtracting y-axis width, x padding, and (optionally) scrollbar width.",
+      "update": "{width: width-configAxes.y.width-configAxes.x.horizontalOuterPadding-(actualHeight > adjustedHeight ? configVerticalScrollbar.track.width/2 : 0), height: adjustedHeight}"
+    },
+    {
+      "name": "currentNodeId",
+      "description": "The node the user is currently drilled into. Changes when the user clicks a node/label (if it has children). Drives the current child dataset.",
+      "init": "data('dataset-formatted')[0].id",
+      "on": [
+        {
+          "events": "@node-clickable-rect:pointerdown{0, 50}, @node-label-clickable-rect:pointerdown{0, 50}",
+          "update": "!isAnimating && datum.hasChildren ? datum.id : currentNodeId"
+        },
+        {
+          "events": "view:pointerdown",
+          "update": "isAnimating ? currentNodeId : !isValid(item()) || !isValid(item().mark) || indexof(['node-clickable-rect', 'node-label-clickable-rect', 'sort-order-group', 'vertical-scrollbar-group'], item().mark.name) < 0 ? previousParentNodeId : currentNodeId"
+        }
+      ]
+    },
+    {
+      "name": "previousParentNodeId",
+      "description": "The node just above the current one in the breadcrumb trail. Used to restore selection when clicking away.",
+      "update": "length(data('breadcrumbs')) > 1 ? data('breadcrumbs')[length(data('breadcrumbs'))-2].id : currentNodeId"
+    },
+    {
+      "name": "nodeMouseOverDatum",
+      "description": "Holds the full datum for the node the mouse is hovering over (or null). Used for highlighting and tooltips.",
+      "init": "null",
+      "on": [
+        {
+          "events": "@node-clickable-rect:mouseover, @node-label-clickable-rect:mouseover",
+          "update": "datum"
+        },
+        {
+          "events": "@node-clickable-rect:mouseout, @node-label-clickable-rect:mouseout",
+          "update": "null"
+        }
+      ]
+    },
+    {
+      "name": "breadcrumbs",
+      "description": "Human-readable breadcrumb string for the current node, built from the breadcrumbs data source (e.g. “Root ⮞ Child ⮞ Leaf”).",
+      "update": "join(pluck(data('breadcrumbs'), 'label'), ' ⮞ ')"
+    },
+    {
+      "name": "nodeTooltip",
+      "description": "Structured tooltip object for the currently hovered node: label, value, ancestors, and rank within its siblings.",
+      "update": "!isValid(nodeMouseOverDatum) ? null : {title: nodeMouseOverDatum.label + ' - ' + nodeMouseOverDatum.value, 'Rank': nodeMouseOverDatum.siblingSort+1 + ' / ' +nodeMouseOverDatum.siblingCount}"
+    },
+    {
+      "name": "drillDirection",
+      "description": "Indicates whether the current navigation is a drill 'down' into children or 'up' to a parent. Computed by comparing depths of current vs previous children.",
+      "update": "!isValid(data('current-child-nodes')[0]) || !isValid(data('previous-child-nodes')[0]) ? null : data('current-child-nodes')[0].depth < data('previous-child-nodes')[0].depth ? 'up' : 'down'"
+    },
+    {
+      "name": "sortIndicatorMouseOver",
+      "description": "True while the mouse is over the sort UI control so the icon/label can increase opacity.",
+      "init": "true",
+      "on": [
+        { "events": "@sort-order-group:mouseover", "update": "true" },
+        { "events": "@sort-order-group:mouseout", "update": "false" }
+      ]
+    },
+    {
+      "name": "sortOrderDescending",
+      "description": "User-selected sort direction for siblings. Toggles when sort control is clicked, unless an animation is currently running.",
+      "init": "true",
+      "on": [
+        {
+          "events": "@sort-order-group:click",
+          "update": "isAnimating ? sortOrderDescending : !sortOrderDescending"
+        }
+      ]
+    },
+    {
+      "name": "sortOrder",
+      "description": "String form of the current sort direction ('descending' or 'ascending') for display/tooltips.",
+      "update": "sortOrderDescending ? 'descending' : 'ascending'"
+    },
+    {
+      "name": "sortChangeStart",
+      "description": "Timestamp marking when the sort order was last changed. Used to time the sort-easing visual effect.",
+      "init": "null",
+      "on": [
+        { "events": { "signal": "sortOrderDescending" }, "update": "now()" }
+      ]
+    },
+    {
+      "name": "isSortChange",
+      "description": "True only during the sort-animation window after a sort toggle. Lets marks hide/show certain gridlines during the transition.",
+      "update": "isValid(sortChangeStart) && timer < sortChangeStart + configAnimationDuration.node"
+    },
+    {
+      "name": "verticalScrollIncrement",
+      "description": "How much to change the scroll percentage for a single keyboard scroll step (ArrowUp/ArrowDown). Computed from actual vs adjusted height.",
+      "update": "0.1 * (actualHeight-adjustedHeight)/actualHeight"
+    },
+    {
+      "name": "verticalScrollbarMouseDown",
+      "description": "True while the user is actively pressing on the scrollbar group. While true, the scrollbar expands and pointer events are captured.",
+      "value": false,
+      "on": [
+        {
+          "events": "@vertical-scrollbar-group:pointerdown",
+          "update": "configVerticalScrollbar.enabled"
+        },
+        {
+          "events": {
+            "type": "mouseout",
+            "scope": "view",
+            "markname": "vertical-scrollbar-group",
+            "filter": ["!event.pointerdown"]
+          },
+          "update": "false"
+        },
+        {
+          "events": {
+            "type": "mouseover",
+            "scope": "scope",
+            "markname": "vertical-scrollbar-group",
+            "filter": ["event.pointerdown"]
+          },
+          "update": "true"
+        },
+        { "events": { "type": "pointerup" }, "update": "false" }
+      ]
+    },
+    {
+      "name": "verticalScrollbarMouseOver",
+      "description": "True while the scrollbar group is hovered. Used to change the handle fill to the hover color.",
+      "value": false,
+      "on": [
+        {
+          "events": "@vertical-scrollbar-group:mouseover",
+          "update": "configVerticalScrollbar.enabled"
+        },
+        { "events": "@vertical-scrollbar-group:mouseout", "update": "false" }
+      ]
+    },
+    {
+      "name": "lastVerticalScroll",
+      "description": "Timestamp of the latest change to verticalScrollPercentage. Used to detect whether the user is actively scrolling.",
+      "value": 0,
+      "on": [
+        {
+          "events": { "signal": "verticalScrollPercentage" },
+          "update": "now()"
+        }
+      ]
+    },
+    {
+      "name": "isVerticalScrolling",
+      "description": "True for a short period after the last scroll update (wheel/drag/keys). Lets the scrollbar show its active state during real scrolling.",
+      "value": 0,
+      "on": [
+        {
+          "events": { "signal": "timer" },
+          "update": "(timer-lastVerticalScroll) < 500"
+        }
+      ]
+    },
+    {
+      "name": "verticalScrollPercentage",
+      "description": "The current scroll position of the node list, expressed as a 0-1 percentage of total scrollable height. Updated by wheel, keys, and dragging the scrollbar.",
+      "value": 0,
+      "on": [
+        {
+          "events": { "signal": "timer" },
+          "update": "isAnimating ? lerp([verticalScrollPercentage, 0], nodeTEasedFull) : verticalScrollPercentage"
+        },
+        {
+          "events": {
+            "type": "wheel",
+            "consume": true,
+            "force": true,
+            "source": "view",
+            "filter": ["!event.ctrlKey", "!event.shiftKey"]
+          },
+          "update": "isAnimating ? verticalScrollPercentage : clamp(verticalScrollPercentage - (-event.deltaY * pow(4, event.deltaMode) * 0.0015 * adjustedHeight / actualHeight), 0, (actualHeight-adjustedHeight)/actualHeight)"
+        },
+        {
+          "events": "window:keydown[event.key === 'ArrowUp' || event.key === 'ArrowDown']{0,0}",
+          "update": "isAnimating ? verticalScrollPercentage : clamp(verticalScrollPercentage + verticalScrollIncrement * (event.key === 'ArrowDown' ? 1 : -1), 0, (actualHeight-adjustedHeight)/actualHeight)"
+        },
+        {
+          "events": {
+            "type": "pointermove",
+            "source": "scope",
+            "markname": "vertical-scrollbar-group",
+            "between": [{ "type": "pointerdown" }, { "type": "pointerup" }]
+          },
+          "update": "isAnimating ? verticalScrollPercentage : !configVerticalScrollbar.enabled ? 0 : invert('scaleScrollHandleY', y(group()))"
+        },
+        {
+          "events": { "signal": "!configVerticalScrollbar.enabled" },
+          "update": "0"
+        },
+        {
+          "events": { "signal": "verticalScrollPercentage" },
+          "update": "isAnimating ? verticalScrollPercentage : isFinite(verticalScrollPercentage) ? verticalScrollPercentage : 0"
+        }
+      ]
+    },
+    {
+      "name": "nodeFullAnimateStart",
+      "description": "Start time for the full-length node animation (the outermost phase). Reset when the user drills or changes sort.",
+      "init": "null",
+      "on": [
+        {
+          "events": [
+            { "signal": "currentNodeId" },
+            { "signal": "sortOrderDescending" }
+          ],
+          "update": "isAnimating ? nodeFullAnimateStart : now()"
+        },
+        {
+          "events": { "signal": "timer" },
+          "update": "timer > (nodeFullAnimateStart+configAnimationDuration.node) ? null : nodeFullAnimateStart"
+        }
+      ]
+    },
+    {
+      "name": "nodeFirstAnimateStart",
+      "description": "Start time for the first half of the drill animation. Used to animate the vertical changes earlier than the horizontal changes.",
+      "init": "null",
+      "on": [
+        {
+          "events": [
+            { "signal": "currentNodeId" },
+            { "signal": "sortOrderDescending" }
+          ],
+          "update": "isAnimating ? nodeFirstAnimateStart : now()"
+        },
+        {
+          "events": { "signal": "timer" },
+          "update": "timer > (nodeFirstAnimateStart+configAnimationDuration.node/2) ? null : nodeFirstAnimateStart"
+        }
+      ]
+    },
+    {
+      "name": "nodeSecondAnimateStart",
+      "description": "Start time for the second half of the drill animation. Usually begins right after the first half finishes.",
+      "init": "null",
+      "on": [
+        {
+          "events": { "signal": "nodeFirstAnimateStart" },
+          "update": "isAnimating ? nodeSecondAnimateStart : isValid(nodeFirstAnimateStart) ? nodeFirstAnimateStart+configAnimationDuration.node/2 : nodeSecondAnimateStart"
+        },
+        {
+          "events": { "signal": "timer" },
+          "update": "timer > (nodeSecondAnimateStart+configAnimationDuration.node/2) ? null : nodeSecondAnimateStart"
+        }
+      ]
+    },
+    {
+      "name": "nodeTFirst",
+      "description": "0–1 progress value for the first animation phase, derived from timer and nodeFirstAnimateStart.",
+      "init": "1",
+      "on": [
+        {
+          "events": { "signal": "timer" },
+          "update": "clamp((timer-nodeFirstAnimateStart)/(configAnimationDuration.node/2),0,1)"
+        }
+      ]
+    },
+    {
+      "name": "nodeTSecond",
+      "description": "0–1 progress value for the second animation phase, derived from timer and nodeSecondAnimateStart.",
+      "init": "1",
+      "on": [
+        {
+          "events": { "signal": "timer" },
+          "update": "clamp((timer-nodeSecondAnimateStart)/(configAnimationDuration.node/2),0,1)"
+        }
+      ]
+    },
+    {
+      "name": "nodeTFull",
+      "description": "0–1 progress value for the entire drill/sort animation window.",
+      "init": "1",
+      "on": [
+        {
+          "events": { "signal": "timer" },
+          "update": "clamp((timer-nodeFullAnimateStart)/((configAnimationDuration.node)),0,1)"
+        }
+      ]
+    },
+    {
+      "name": "nodeTEasedFirst",
+      "description": "Eased version of nodeTFirst (cubic in/out) used by marks to get smoother movement on the first phase.",
+      "update": "nodeTFirst < 0.5 ? 4*pow(nodeTFirst,3) : 1 - pow(-2*nodeTFirst + 2, 3)/2"
+    },
+    {
+      "name": "nodeTEasedSecond",
+      "description": "Eased version of nodeTSecond (ease-out) used by marks for the second phase.",
+      "update": "1 - pow(1 - nodeTSecond, 2)"
+    },
+    {
+      "name": "nodeTEasedFull",
+      "description": "Eased version of nodeTFull used in places that need the whole animation duration (e.g. auto-scrolling back to top).",
+      "update": "nodeTFull < 0.5 ? 4*pow(nodeTFull,3) : 1 - pow(-2*nodeTFull + 2, 3)/2"
+    },
+    {
+      "name": "isAnimating",
+      "description": "True whenever either the first or second animation phase is still in progress. Used to block clicks/sorts during animation.",
+      "update": "nodeTFirst <  1 || nodeTSecond < 1"
+    },
+    {
+      "name": "actualHeight",
+      "description": "Height required to render all current child rows (rowCount x rowHeight). This is the content height before scrolling.",
+      "update": "length(data('current-child-nodes')) * configRow.rowHeight"
+    },
+    {
+      "name": "scrollY",
+      "description": "Pixel offset applied to node marks to simulate vertical scrolling. Derived from verticalScrollPercentage and actual/adjusted heights.",
+      "init": "0",
+      "on": [
+        {
+          "events": { "signal": "verticalScrollPercentage" },
+          "update": "actualHeight > adjustedHeight ? clamp(-verticalScrollPercentage*actualHeight, -(actualHeight-adjustedHeight), 0) : 0"
+        }
+      ]
+    },
+    {
+      "name": "adjustedHeight",
+      "description": "Usable chart-body height after considering embedding (Power BI vs fixed) and header/footer offsets. This is the viewport height for rows.",
+      "update": "configIsPowerBIVisual ? containerSize()[1]-padding.top-padding.bottom-50-(configHeader.verticalOffset+configHeader.verticalOffset)- (configFooter.height+configFooter.verticalOffset) : configDesiredChartHeight"
+    },
+    {
+      "name": "width",
+      "description": "Final overall visualization width after considering embedding (Power BI vs fixed).",
+      "update": "configIsPowerBIVisual ? containerSize()[0] : configDesiredWidth"
+    },
+    {
+      "name": "height",
+      "description": "Final overall visualization height = header + footer + adjustedHeight. This is what Vega uses for the view.",
+      "update": "configHeader.height+configHeader.verticalOffset+configFooter.height+configFooter.verticalOffset+adjustedHeight"
+    }
+  ],
+  "marks": [
+    {
+      "name": "everything-group",
+      "description": "Group that contains all marks.",
+      "type": "group",
+      "signals": [
+        { "name": "configAxes.x.horizontalOuterPadding", "value": 40 }
+      ],
+      "marks": [
+        {
+          "name": "header-group",
+          "description": "Group that is available for additional marks above the chart.",
+          "type": "group",
+          "encode": {
+            "update": {
+              "width": { "signal": "width" },
+              "height": { "signal": "configHeader.height" },
+              "clip": { "value": true }
+            }
+          }
+        },
+        {
+          "name": "x-axis-group-padded",
+          "description": "Group that contains horizontal padding to accomodate x-axis labels.",
+          "type": "group",
+          "from": { "data": "header-group" },
+          "encode": {
+            "update": {
+              "x": {
+                "signal": "configAxes.y.width",
+                "offset": { "signal": "-configAxes.x.horizontalOuterPadding" }
+              },
+              "y": {
+                "signal": "datum.bounds.y2",
+                "offset": {
+                  "signal": "configHeader.verticalOffset+configAxes.x.height-configAxes.x.height"
+                }
+              },
+              "width": {
+                "signal": "plotAreaDimensions.width",
+                "offset": { "signal": "configAxes.x.horizontalOuterPadding*2" }
+              },
+              "height": { "signal": "configAxes.x.height+adjustedHeight" },
+              "clip": { "value": true }
+            }
+          },
+          "marks": [
+            {
+              "name": "x-axis-group",
+              "description": "Group that contains the x-axis.",
+              "type": "group",
+              "encode": {
+                "update": {
+                  "x": { "signal": "configAxes.x.horizontalOuterPadding" }
+                }
+              },
+              "scales": [
+                {
+                  "name": "scaleYGrid",
+                  "type": "linear",
+                  "zero": true,
+                  "domain": [0, 1],
+                  "range": {
+                    "signal": "[configAxes.x.height, configAxes.x.height+plotAreaDimensions.height+configRow.rowHeight]"
+                  }
+                }
+              ],
+              "axes": [
+                {
+                  "scale": "scaleX",
+                  "orient": "top",
+                  "offset": { "signal": "-configAxes.x.height" },
+                  "format": { "signal": "configAxes.x.labels.format" },
+                  "grid": true,
+                  "gridScale": "scaleYGrid",
+                  "gridColor": {
+                    "signal": "configColorScheme.axes.x.grid.stroke"
+                  },
+                  "tickColor": {
+                    "signal": "configColorScheme.axes.x.ticks.stroke"
+                  },
+                  "domain": false,
+                  "labelColor": {
+                    "signal": "configColorScheme.axes.x.text.fill"
+                  },
+                  "encode": {
+                    "labels": {
+                      "update": {
+                        "text": {
+                          "signal": "extent(pluck(data('current-child-nodes'), 'value'))[1] <= 1 || configAxes.x.labels.wholeNumbersOnly && datum.value%2 > 0 ? null : datum.label"
+                        }
+                      }
+                    },
+                    "ticks": {
+                      "update": {
+                        "opacity": {
+                          "signal": "extent(pluck(data('current-child-nodes'), 'value'))[1] <= 1 || configAxes.x.labels.wholeNumbersOnly && datum.value%2 > 0 ? 0 : 1"
+                        }
+                      }
+                    },
+                    "grid": {
+                      "update": {
+                        "stroke": {
+                          "signal": "datum.value === 0 && !isSortChange ? (drillDirection === 'down' && nodeTEasedFirst === 1 && nodeTEasedSecond < 1 ? 'transparent' : drillDirection === 'up' && nodeTEasedFirst < 1 ? 'transparent' : configColorScheme.axes.x.grid.stroke) : configColorScheme.axes.x.grid.stroke"
+                        },
+                        "opacity": {
+                          "signal": "extent(pluck(data('current-child-nodes'), 'value'))[1] <= 1 || configAxes.x.labels.wholeNumbersOnly && datum.value%2 > 0 ? 0 : 1"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "sort-order-group",
+          "description": "Group that has the sort indicator marks",
+          "type": "group",
+          "from": { "data": "x-axis-group-padded" },
+          "interactive": true,
+          "encode": {
+            "update": {
+              "y2": { "signal": "datum.bounds.y1+configAxes.x.height" },
+              "height": { "signal": "24" },
+              "x": { "signal": "0" },
+              "width": { "signal": "configAxes.y.width/2" },
+              "fill": { "value": "transparent" },
+              "cursor": { "value": "pointer" }
+            }
+          },
+          "signals": [
+            {
+              "name": "sortIndicatorAngle",
+              "update": "!isSortChange ? sortIndicatorAngle : sortOrderDescending ? lerp([-180, 0], nodeTEasedFirst) : lerp([0, -180], nodeTEasedFirst)"
+            },
+            { "name": "xOffset", "update": "8" }
+          ],
+          "marks": [
+            {
+              "name": "sort-label",
+              "description": "Hardcoded 'Sort' label.",
+              "type": "text",
+              "interactive": false,
+              "encode": {
+                "update": {
+                  "text": { "value": "Value sort" },
+                  "y": { "signal": "configRow.rowHeight/2" },
+                  "fill": { "signal": "configColorScheme.axes.y.text.fill" },
+                  "opacity": { "signal": "sortIndicatorMouseOver ? 1 : 0.55" },
+                  "baseline": { "value": "middle" },
+                  "align": { "value": "left" }
+                }
+              }
+            },
+            {
+              "name": "sort-indicator",
+              "description": "Arrowhead indicator showing sort direction.",
+              "type": "text",
+              "from": { "data": "sort-label" },
+              "interactive": false,
+              "encode": {
+                "update": {
+                  "x": {
+                    "signal": "datum.bounds.x2",
+                    "offset": { "signal": "xOffset" }
+                  },
+                  "text": { "value": "⮟" },
+                  "fontSize": { "value": 12 },
+                  "y": {
+                    "signal": "datum.bounds.y1",
+                    "offset": {
+                      "signal": "(datum.bounds.y2-datum.bounds.y1)/2"
+                    }
+                  },
+                  "fill": { "signal": "configColorScheme.axes.y.text.fill" },
+                  "opacity": { "signal": "sortIndicatorMouseOver ? 1 : 0.55" },
+                  "baseline": { "value": "middle" },
+                  "angle": { "signal": "sortIndicatorAngle" },
+                  "align": { "value": "center" }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "static-chart-area-group",
+          "description": "Non-scrolling group for the chart marks.",
+          "type": "group",
+          "from": { "data": "header-group" },
+          "encode": {
+            "update": {
+              "y": {
+                "signal": "datum.bounds.y2",
+                "offset": {
+                  "signal": "configHeader.verticalOffset+configAxes.x.height"
+                }
+              },
+              "width": {
+                "signal": "configAxes.y.width+plotAreaDimensions.width"
+              },
+              "height": { "signal": "plotAreaDimensions.height" },
+              "clip": { "value": true }
+            }
+          },
+          "marks": [
+            {
+              "name": "node-label",
+              "description": "Text labels for each node.",
+              "type": "text",
+              "from": { "data": "node-animation" },
+              "interactive": false,
+              "key": "id",
+              "encode": {
+                "update": {
+                  "text": { "field": "label" },
+                  "x": {
+                    "field": "x1",
+                    "offset": { "signal": "configAxes.y.width-5" }
+                  },
+                  "y": {
+                    "field": "y1",
+                    "offset": { "signal": "configRow.rowHeight/2+scrollY" }
+                  },
+                  "align": { "value": "right" },
+                  "baseline": { "value": "middle" },
+                  "limit": { "signal": "configAxes.y.width-5" },
+                  "fontWeight": {
+                    "signal": "isValid(nodeMouseOverDatum)  && !isAnimating ? nodeMouseOverDatum.id === datum.id ? 600 : 400 : 400"
+                  },
+                  "opacity": {
+                    "signal": "isValid(nodeMouseOverDatum) && !isAnimating ? nodeMouseOverDatum.id === datum.id ? datum.labelOpacity : datum.labelOpacity*0.65 : datum.labelOpacity"
+                  }
+                }
+              }
+            },
+            {
+              "name": "node-label-clickable-rect",
+              "description": "Invisible interactive rect for each node label.",
+              "type": "rect",
+              "from": { "data": "node-animation" },
+              "interactive": { "signal": "!isAnimating" },
+              "key": "id",
+              "encode": {
+                "update": {
+                  "tooltip": { "signal": "nodeTooltip" },
+                  "x": { "value": 0 },
+                  "x2": { "signal": "isAnimating ? 0 : configAxes.y.width" },
+                  "y": { "field": "y1", "offset": { "signal": "scrollY" } },
+                  "y2": { "field": "y2" },
+                  "fill": { "value": "transparent" },
+                  "cursor": { "value": "pointer" }
+                }
+              }
+            },
+            {
+              "name": "enter-nodes-group",
+              "description": "Group for node bars entering the view.",
+              "type": "group",
+              "encode": {
+                "enter": {
+                  "x": { "signal": "configAxes.y.width" },
+                  "width": {
+                    "signal": "configAxes.y.width+plotAreaDimensions.width"
+                  },
+                  "clip": { "value": true }
+                },
+                "update": {
+                  "y": { "signal": "scrollY" },
+                  "height": { "signal": "plotAreaDimensions.height-scrollY" }
+                }
+              },
+              "data": [
+                {
+                  "name": "node-animation-enter",
+                  "source": "node-animation",
+                  "transform": [
+                    { "type": "filter", "expr": "datum.join !== 'exit'" }
+                  ]
+                }
+              ],
+              "marks": [
+                {
+                  "name": "node-clickable-rect",
+                  "description": "Invisible rect that allows for node interactivity.",
+                  "type": "rect",
+                  "from": { "data": "node-animation-enter" },
+                  "key": "id",
+                  "interactive": { "signal": "!isAnimating" },
+                  "encode": {
+                    "update": {
+                      "tooltip": { "signal": "nodeTooltip" },
+                      "x": { "signal": "range('scaleX')[0]" },
+                      "x2": {
+                        "signal": "isAnimating ? range('scaleX')[0] : datum.x2"
+                      },
+                      "y": { "field": "y1" },
+                      "y2": { "field": "y2" },
+                      "fill": { "value": "transparent" },
+                      "cursor": { "value": "pointer" }
+                    }
+                  }
+                },
+                {
+                  "name": "node-rect-background",
+                  "description": "Rect that sits behind the visible bars.",
+                  "type": "rect",
+                  "from": { "data": "node-animation-enter" },
+                  "key": "id",
+                  "interactive": false,
+                  "encode": {
+                    "update": {
+                      "x": { "field": "x1" },
+                      "x2": { "field": "x2" },
+                      "y": { "field": "y1WithPadding" },
+                      "y2": { "field": "y2WithPadding" },
+                      "opacity": { "field": "barOpacity" },
+                      "fill": { "signal": "background || '#fff'" }
+                    }
+                  }
+                },
+                {
+                  "name": "node-rect",
+                  "description": "Node bars.",
+                  "type": "rect",
+                  "from": { "data": "node-animation-enter" },
+                  "key": "id",
+                  "interactive": false,
+                  "encode": {
+                    "update": {
+                      "x": { "field": "x1" },
+                      "x2": { "field": "x2" },
+                      "y": { "field": "y1WithPadding" },
+                      "y2": { "field": "y2WithPadding" },
+                      "fill": { "field": "fillColor" },
+                      "stroke": { "field": "strokeColor" },
+                      "opacity": {
+                        "signal": "isValid(nodeMouseOverDatum) ? nodeMouseOverDatum.id === datum.id ? datum.barOpacity : datum.barOpacity*0.65 : datum.barOpacity"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "name": "exit-nodes-group",
+              "description": "Group for node bars exiting the view.",
+              "type": "group",
+              "encode": {
+                "enter": {
+                  "x": { "signal": "configAxes.y.width" },
+                  "width": {
+                    "signal": "configAxes.y.width+plotAreaDimensions.width"
+                  },
+                  "clip": { "value": true }
+                },
+                "update": {
+                  "y": { "signal": "scrollY" },
+                  "height": { "signal": "plotAreaDimensions.height-scrollY" }
+                }
+              },
+              "data": [
+                {
+                  "name": "node-animation-exit",
+                  "source": "node-animation",
+                  "transform": [
+                    { "type": "filter", "expr": "datum.join === 'exit'" }
+                  ]
+                }
+              ],
+              "marks": [
+                {
+                  "name": "node-rect-background",
+                  "description": "Rect that sits behind the visible bars.",
+                  "type": "rect",
+                  "from": { "data": "node-animation-exit" },
+                  "key": "id",
+                  "interactive": false,
+                  "encode": {
+                    "update": {
+                      "x": { "field": "x1" },
+                      "x2": { "field": "x2" },
+                      "y": { "field": "y1WithPadding" },
+                      "y2": { "field": "y2WithPadding" },
+                      "opacity": { "field": "barOpacity" },
+                      "fill": { "signal": "background || '#fff'" }
+                    }
+                  }
+                },
+                {
+                  "name": "node-rect",
+                  "description": "Node bars.",
+                  "type": "rect",
+                  "from": { "data": "node-animation-exit" },
+                  "key": "id",
+                  "interactive": false,
+                  "encode": {
+                    "update": {
+                      "x": { "field": "x1" },
+                      "x2": { "field": "x2" },
+                      "y": { "field": "y1WithPadding" },
+                      "y2": { "field": "y2WithPadding" },
+                      "opacity": { "field": "barOpacity" },
+                      "fill": { "field": "fillColor" },
+                      "stroke": { "field": "strokeColor" }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "name": "plot-container-rect-top",
+              "description": "Chart's top border.",
+              "type": "rect",
+              "interactive": false,
+              "encode": {
+                "update": {
+                  "x": { "signal": "configAxes.y.width" },
+                  "width": { "signal": "plotAreaDimensions.width" },
+                  "height": { "value": 1 },
+                  "fill": { "value": "#888" }
+                }
+              }
+            },
+            {
+              "name": "plot-container-rect-right",
+              "description": "Chart's right border.",
+              "type": "rect",
+              "interactive": false,
+              "encode": {
+                "update": {
+                  "x": {
+                    "signal": "configAxes.y.width+plotAreaDimensions.width",
+                    "offset": { "value": -1 }
+                  },
+                  "width": { "signal": "1" },
+                  "height": { "signal": "plotAreaDimensions.height" },
+                  "fill": { "value": "#888" }
+                }
+              }
+            },
+            {
+              "name": "plot-container-rect-bottom",
+              "description": "Chart's bottom border.",
+              "type": "rect",
+              "interactive": false,
+              "encode": {
+                "update": {
+                  "x": { "signal": "configAxes.y.width" },
+                  "y": {
+                    "signal": "plotAreaDimensions.height",
+                    "offset": { "value": -1 }
+                  },
+                  "width": { "signal": "plotAreaDimensions.width" },
+                  "height": { "value": 1 },
+                  "fill": { "value": "#888" }
+                }
+              }
+            },
+            {
+              "name": "plot-container-rect",
+              "description": "Chart's left border. Opacity changes when bars are entering/exiting.",
+              "type": "rect",
+              "interactive": false,
+              "encode": {
+                "update": {
+                  "x": { "signal": "configAxes.y.width", "offset": 0.5 },
+                  "width": { "signal": "1" },
+                  "height": { "signal": "plotAreaDimensions.height-1" },
+                  "fill": { "value": "#888" },
+                  "opacity": {
+                    "signal": "isSortChange ? 1 : drillDirection === 'down' && nodeTEasedFirst === 1 && nodeTEasedSecond < 1 ? 0 : drillDirection === 'up' && nodeTEasedFirst < 1 ? 0 : 1"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "vertical-scrollbar-group",
+          "description": "the group of marks that make up the vertical scrollbar",
+          "type": "group",
+          "from": { "data": "static-chart-area-group" },
+          "interactive": { "signal": "!isAnimating" },
+          "encode": {
+            "update": {
+              "y": {
+                "signal": "datum.bounds.y1+(verticalScrollbarMouseDown ? -configAxes.x.height*2-configHeader.height-configHeader.verticalOffset: 0.5)"
+              },
+              "x": {
+                "signal": "verticalScrollbarMouseDown ? 0 : datum.bounds.x2"
+              },
+              "width": {
+                "signal": "actualHeight > adjustedHeight && configVerticalScrollbar.enabled ? verticalScrollbarMouseDown ? datum.bounds.x2+plotAreaDimensions.width+configVerticalScrollbar.track.width : configVerticalScrollbar.track.width : 0"
+              },
+              "height": {
+                "signal": "actualHeight > adjustedHeight && configVerticalScrollbar.enabled ? ((verticalScrollbarMouseDown ? +configAxes.x.height*2+configHeader.height+configHeader.verticalOffset+configFooter.height+configFooter.verticalOffset : 0) + plotAreaDimensions.height) : 0"
+              },
+              "fill": { "value": "transparent" },
+              "cursor": { "signal": "'pointer'" },
+              "zindex": { "value": 999 }
+            }
+          },
+          "marks": [
+            {
+              "name": "rect_verticalScrollbar_track",
+              "description": "the track for the scrollbar",
+              "type": "rect",
+              "interactive": false,
+              "encode": {
+                "update": {
+                  "y": {
+                    "signal": "(verticalScrollbarMouseDown ? configAxes.x.height*2+configHeader.height+configHeader.verticalOffset + 0.5 : 0)"
+                  },
+                  "x": {
+                    "signal": "verticalScrollbarMouseDown ? parent.bounds.x2: 0"
+                  },
+                  "width": {
+                    "signal": "configVerticalScrollbar.enabled ? configVerticalScrollbar.track.width : 0"
+                  },
+                  "height": {
+                    "signal": "configVerticalScrollbar.enabled ? configVerticalScrollbar.track.height-1 : 0"
+                  },
+                  "fill": { "signal": "configVerticalScrollbar.track.fill" },
+                  "stroke": { "value": "#888" },
+                  "strokeWidth": { "signal": "1" }
+                }
+              }
+            },
+            {
+              "name": "rect_verticalScrollbar_handle",
+              "description": "the handle for the scrollbar",
+              "type": "rect",
+              "interactive": false,
+              "encode": {
+                "update": {
+                  "x": {
+                    "signal": "verticalScrollbarMouseDown ? parent.bounds.x2: 0"
+                  },
+                  "width": {
+                    "signal": "configVerticalScrollbar.enabled ? configVerticalScrollbar.track.width : 0"
+                  },
+                  "y": {
+                    "signal": "(scale('scaleScrollHandleY', verticalScrollPercentage)-configVerticalScrollbar.handle.height)"
+                  },
+                  "y2": {
+                    "signal": "scale('scaleScrollHandleY', verticalScrollPercentage)-1"
+                  },
+                  "fill": {
+                    "signal": "isVerticalScrolling || verticalScrollbarMouseOver || verticalScrollbarMouseDown ? configVerticalScrollbar.handle.hover.fill : configVerticalScrollbar.handle.fill"
+                  },
+                  "stroke": { "value": "#888" },
+                  "strokeWidth": {
+                    "signal": "configVerticalScrollbar.enabled ? 1 : 0"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "footer-group",
+          "description": "Group that is available for additional marks below the chart.",
+          "type": "group",
+          "from": { "data": "static-chart-area-group" },
+          "encode": {
+            "update": {
+              "y": { "signal": "datum.bounds.y2+configFooter.verticalOffset" },
+              "width": { "signal": "width" },
+              "height": { "signal": "configFooter.height" },
+              "clip": { "value": true }
+            }
+          },
+          "marks": [
+            {
+              "name": "breacrum-text",
+              "type": "text",
+              "interactive": false,
+              "encode": {
+                "update": {
+                  "text": { "signal": "breadcrumbs" },
+                  "x": { "signal": "width/2" },
+                  "y": { "signal": "configFooter.height/2" },
+                  "align": { "value": "center" },
+                  "baseline": { "value": "middle" }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "scales": [
+    {
+      "name": "scaleX",
+      "type": "linear",
+      "clamp": true,
+      "zero": true,
+      "domain": { "signal": "data('x-domain')[0].xDomain" },
+      "range": { "signal": "[0, plotAreaDimensions.width]" }
+    },
+    {
+      "name": "scaleScrollHandleY",
+      "type": "linear",
+      "domain": [0, { "signal": "(actualHeight-adjustedHeight)/actualHeight" }],
+      "range": {
+        "signal": "[(verticalScrollbarMouseDown ? configAxes.x.height*2+configHeader.height+configHeader.verticalOffset: 0)+configVerticalScrollbar.handle.height, (verticalScrollbarMouseDown ? configAxes.x.height*2+configHeader.height+configHeader.verticalOffset : 0)+configVerticalScrollbar.track.height]"
+      },
+      "clamp": true
+    }
+  ],
+  "data": [
+    {
+      "name": "dataset",
+      "url": "https://raw.githubusercontent.com/Giammaria/PublicFiles/refs/heads/master/data/20251107_education_catelog?version=3"
+    },
+    {
+      "name": "rgb",
+      "values": [
+        { "nodeType": "parent", "encodeType": "fill" },
+        { "nodeType": "parent", "encodeType": "stroke" },
+        { "nodeType": "leaf", "encodeType": "fill" },
+        { "nodeType": "leaf", "encodeType": "stroke" }
+      ],
+      "transform": [
+        {
+          "type": "formula",
+          "expr": "datum.nodeType === 'parent' ? datum.encodeType === 'fill' ? configColorScheme.bars.parent.rgbFill : configColorScheme.bars.parent.rgbStroke : datum.encodeType === 'fill' ? configColorScheme.bars.leaf.rgbFill : configColorScheme.bars.leaf.rgbStroke",
+          "as": "rawValue"
+        },
+        {
+          "type": "formula",
+          "expr": "test('^rgb\\\\(\\\\s*(?:[01]?\\\\d?\\\\d|2[0-4]\\\\d|25[0-5])\\\\s*,\\\\s*(?:[01]?\\\\d?\\\\d|2[0-4]\\\\d|25[0-5])\\\\s*,\\\\s*(?:[01]?\\\\d?\\\\d|2[0-4]\\\\d|25[0-5])\\\\s*\\\\)$', datum.rawValue)",
+          "as": "isInRGBFormat"
+        },
+        {
+          "type": "formula",
+          "as": "r",
+          "expr": "toNumber(replace(datum.rawValue, regexp('^rgb\\\\(\\\\s*(\\\\d{1,3})\\\\s*,.*$'), '$1'))"
+        },
+        {
+          "type": "formula",
+          "as": "g",
+          "expr": "toNumber(replace(datum.rawValue, regexp('^rgb\\\\(\\\\s*\\\\d{1,3}\\\\s*,\\\\s*(\\\\d{1,3})\\\\s*,.*$'), '$1'))"
+        },
+        {
+          "type": "formula",
+          "as": "b",
+          "expr": "toNumber(replace(datum.rawValue, regexp('^rgb\\\\(\\\\s*\\\\d{1,3}\\\\s*,\\\\s*\\\\d{1,3}\\\\s*,\\\\s*(\\\\d{1,3})\\\\s*\\\\)$'), '$1'))"
+        }
+      ]
+    },
+    {
+      "name": "rgb-fill",
+      "source": "rgb",
+      "transform": [{ "type": "filter", "expr": "datum.encodeType === 'fill'" }]
+    },
+    {
+      "name": "rgb-stroke",
+      "source": "rgb",
+      "transform": [
+        { "type": "filter", "expr": "datum.encodeType === 'stroke'" }
+      ]
+    },
+    {
+      "name": "dataset-formatted",
+      "source": "dataset",
+      "transform": [
+        { "type": "formula", "expr": "datum[configFields.id]", "as": "id" },
+        {
+          "type": "formula",
+          "expr": "datum[configFields.parentId]",
+          "as": "parentId"
+        },
+        {
+          "type": "formula",
+          "expr": "datum[configFields.label]",
+          "as": "label"
+        },
+        {
+          "type": "formula",
+          "expr": "replace(replace(lower((datum[configFields.name] || '')), /[^a-z0-9]+/g, '_'), /^_+|_+$/g, '')",
+          "as": "name"
+        },
+        {
+          "type": "formula",
+          "expr": "datum[configFields.value] || null",
+          "as": "value"
+        },
+        {
+          "type": "project",
+          "fields": ["id", "parentId", "name", "label", "value"]
+        }
+      ]
+    },
+    {
+      "name": "hierarchy-tree",
+      "source": "dataset-formatted",
+      "transform": [
+        { "type": "stratify", "key": "id", "parentKey": "parentId" },
+        { "type": "tree", "as": ["tx", "ty", "depth", "children"] },
+        {
+          "type": "formula",
+          "expr": "isValid(datum.value) ? datum.value : 1",
+          "as": "leafValue"
+        }
+      ]
+    },
+    {
+      "name": "hierarchy-aggregate",
+      "source": "hierarchy-tree",
+      "transform": [
+        {
+          "type": "formula",
+          "expr": "isValid(datum.value) || datum.children === 0",
+          "as": "isTerminal"
+        },
+        { "type": "filter", "expr": "datum.isTerminal" },
+        {
+          "type": "formula",
+          "expr": "treeAncestors('hierarchy-tree', datum.id)",
+          "as": "ancestors"
+        },
+        { "type": "flatten", "fields": ["ancestors"], "as": ["ancestorObj"] },
+        { "type": "formula", "expr": "datum.ancestorObj.id", "as": "id" },
+        {
+          "type": "aggregate",
+          "groupby": ["id"],
+          "ops": ["sum"],
+          "fields": ["leafValue"],
+          "as": ["terminalSum"]
+        },
+        {
+          "type": "lookup",
+          "from": "hierarchy-tree",
+          "key": "id",
+          "fields": ["id"],
+          "values": [
+            "parentId",
+            "name",
+            "label",
+            "value",
+            "depth",
+            "leafValue",
+            "children"
+          ],
+          "as": [
+            "parentId",
+            "name",
+            "label",
+            "value",
+            "depth",
+            "leafValue",
+            "children"
+          ]
+        },
+        {
+          "type": "formula",
+          "expr": "datum.isTerminal ? datum.terminalSum - datum.leafValue : datum.terminalSum",
+          "as": "descendantTotal"
+        },
+        {
+          "type": "formula",
+          "expr": "isValid(datum.value) ? datum.value : datum.descendantTotal",
+          "as": "value"
+        },
+        {
+          "type": "project",
+          "fields": [
+            "id",
+            "parentId",
+            "name",
+            "label",
+            "value",
+            "depth",
+            "children"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "hierarchy-with-value-and-sort",
+      "source": "hierarchy-aggregate",
+      "transform": [
+        {
+          "type": "window",
+          "ops": ["row_number", "count"],
+          "groupby": ["parentId"],
+          "sort": { "field": "value", "order": "descending" },
+          "frame": [null, null],
+          "as": ["siblingSortDescending", "siblingCount"]
+        },
+        {
+          "type": "window",
+          "ops": ["row_number"],
+          "groupby": ["parentId"],
+          "sort": { "field": "value", "order": "ascending" },
+          "frame": [null, null],
+          "as": ["siblingSortAscending"]
+        },
+        {
+          "type": "formula",
+          "expr": "datum.siblingSortDescending-1",
+          "as": "siblingSortDescending"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.siblingSortAscending-1",
+          "as": "siblingSortAscending"
+        },
+        {
+          "type": "formula",
+          "expr": "sortOrderDescending ? datum.siblingSortDescending : datum.siblingSortAscending",
+          "as": "siblingSort"
+        }
+      ]
+    },
+    {
+      "name": "full-hierarchy",
+      "source": "hierarchy-with-value-and-sort",
+      "transform": [
+        {
+          "type": "formula",
+          "expr": "configRow.rowHeight*datum.siblingSortDescending",
+          "as": "nodeY1Descending"
+        },
+        {
+          "type": "formula",
+          "expr": "configRow.rowHeight*datum.siblingSortAscending",
+          "as": "nodeY1Ascending"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.children && datum.children > 0",
+          "as": "hasChildren"
+        }
+      ]
+    },
+    {
+      "name": "current-parent-node",
+      "source": "full-hierarchy",
+      "transform": [{ "type": "filter", "expr": "datum.id === currentNodeId" }]
+    },
+    {
+      "name": "breadcrumbs",
+      "on": [
+        {
+          "trigger": "data('current-parent-node')",
+          "remove": false,
+          "insert": "{id: currentNodeId}"
+        }
+      ],
+      "transform": [
+        {
+          "type": "lookup",
+          "from": "full-hierarchy",
+          "key": "id",
+          "fields": ["id"],
+          "values": ["label", "depth"]
+        },
+        {
+          "type": "window",
+          "ops": ["last_value"],
+          "fields": ["depth"],
+          "frame": [null, null],
+          "as": ["lastdepth"]
+        },
+        { "type": "filter", "expr": "datum.depth <= datum.lastdepth" },
+        {
+          "type": "aggregate",
+          "ops": ["max"],
+          "fields": ["lastdepth"],
+          "groupby": ["id", "label", "depth"],
+          "as": ["lastdepth"]
+        },
+        {
+          "type": "window",
+          "ops": ["row_number"],
+          "fields": ["depth"],
+          "groupby": ["depth"],
+          "as": ["depthIndex"]
+        },
+        { "type": "filter", "expr": "datum.depthIndex === 1" },
+        { "type": "project", "fields": ["id", "label"] }
+      ]
+    },
+    {
+      "name": "current-child-nodes",
+      "source": "full-hierarchy",
+      "transform": [
+        { "type": "filter", "expr": "datum.parentId === currentNodeId" },
+        {
+          "type": "collect",
+          "sort": { "field": "siblingSort", "order": "ascending" }
+        }
+      ]
+    },
+    {
+      "name": "previous-child-node-Ids",
+      "on": [
+        {
+          "trigger": "data('current-child-nodes')",
+          "remove": false,
+          "insert": "{data: data('current-child-nodes'), timestamp: now()}"
+        }
+      ],
+      "transform": [
+        {
+          "type": "window",
+          "ops": ["row_number", "count"],
+          "sort": { "field": ["timestamp"], "order": ["ascending"] },
+          "frame": [null, null],
+          "as": ["index", "count"]
+        },
+        {
+          "type": "filter",
+          "expr": "datum.count === 1 ? datum.index === 1 : ((datum.count-1) === datum.index)"
+        },
+        { "type": "flatten", "fields": ["data"] },
+        { "type": "formula", "expr": "datum.data.id", "as": "id" }
+      ]
+    },
+    {
+      "name": "previous-child-nodes",
+      "source": "previous-child-node-Ids",
+      "transform": [
+        { "type": "formula", "expr": "datum.data.id", "as": "id" },
+        { "type": "formula", "expr": "datum.data.parentId", "as": "parentId" },
+        {
+          "type": "formula",
+          "expr": "datum.data.siblingSort",
+          "as": "siblingSort"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.data.hasChildren",
+          "as": "hasChildren"
+        },
+        { "type": "formula", "expr": "datum.data.value", "as": "value" },
+        { "type": "formula", "expr": "datum.data.depth", "as": "depth" },
+        {
+          "type": "project",
+          "fields": [
+            "id",
+            "parentId",
+            "siblingSort",
+            "hasChildren",
+            "value",
+            "depth"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "x-max-domain",
+      "values": [{ "previousDomain": [], "currentDomain": [] }],
+      "transform": [
+        {
+          "type": "formula",
+          "expr": "extent(pluck(data('previous-child-nodes'), 'value'))[1]",
+          "as": "previousDomain"
+        },
+        {
+          "type": "formula",
+          "expr": "extent(pluck(data('current-child-nodes'), 'value'))[1]",
+          "as": "currentDomain"
+        }
+      ]
+    },
+    {
+      "name": "x-domain",
+      "source": "x-max-domain",
+      "transform": [
+        {
+          "type": "formula",
+          "expr": "isSortChange ? datum.xDomain : [0, lerp([datum.previousDomain, datum.currentDomain], (drillDirection === 'down' ? nodeTEasedSecond : nodeTEasedFirst))]",
+          "as": "xDomain"
+        }
+      ]
+    },
+    {
+      "name": "node-animation",
+      "source": "full-hierarchy",
+      "transform": [
+        {
+          "type": "project",
+          "fields": [
+            "id",
+            "parentId",
+            "label",
+            "hasChildren",
+            "siblingSort",
+            "siblingCount",
+            "value",
+            "nodeY1Descending",
+            "nodeY1Ascending"
+          ]
+        },
+        {
+          "type": "lookup",
+          "from": "full-hierarchy",
+          "key": "id",
+          "fields": ["parentId"],
+          "values": ["nodeY1Descending", "nodeY1Ascending"],
+          "as": ["parentNodeY1Descending", "parentNodeY1Ascending"]
+        },
+        {
+          "type": "formula",
+          "expr": "sortOrderDescending ? datum.nodeY1Descending : datum.nodeY1Ascending",
+          "as": "nodeY1"
+        },
+        {
+          "type": "formula",
+          "expr": "sortOrderDescending ? datum.parentNodeY1Descending : datum.parentNodeY1Ascending",
+          "as": "parentY1"
+        },
+        {
+          "type": "lookup",
+          "from": "previous-child-nodes",
+          "key": "id",
+          "fields": ["id"],
+          "as": ["exitingValues"]
+        },
+        {
+          "type": "lookup",
+          "from": "current-child-nodes",
+          "key": "id",
+          "fields": ["id"],
+          "as": ["enteringValues"]
+        },
+        {
+          "type": "formula",
+          "as": "sourceNodeType",
+          "expr": "isValid(datum.exitingValues) ? (datum.exitingValues.hasChildren ? 'parent' : 'leaf') : (datum.hasChildren ? 'parent' : 'leaf')"
+        },
+        {
+          "type": "formula",
+          "as": "targetNodeType",
+          "expr": "isValid(datum.enteringValues) ? (datum.enteringValues.hasChildren ? 'parent' : 'leaf') : (datum.hasChildren ? 'parent' : 'leaf')"
+        },
+        {
+          "type": "filter",
+          "expr": "isValid(datum.exitingValues) || isValid(datum.enteringValues)"
+        },
+        {
+          "type": "formula",
+          "expr": "isValid(datum.exitingValues) && isValid(datum.enteringValues) ? 'initial' : (!isValid(datum.exitingValues) ? 'enter' : 'exit')",
+          "as": "join"
+        },
+        {
+          "type": "lookup",
+          "from": "rgb-fill",
+          "key": "nodeType",
+          "fields": ["sourceNodeType"],
+          "as": ["sourceFill"]
+        },
+        {
+          "type": "lookup",
+          "from": "rgb-fill",
+          "key": "nodeType",
+          "fields": ["targetNodeType"],
+          "as": ["targetFill"]
+        },
+        {
+          "type": "lookup",
+          "from": "rgb-stroke",
+          "key": "nodeType",
+          "fields": ["sourceNodeType"],
+          "as": ["sourceStroke"]
+        },
+        {
+          "type": "lookup",
+          "from": "rgb-stroke",
+          "key": "nodeType",
+          "fields": ["targetNodeType"],
+          "as": ["targetStroke"]
+        },
+        {
+          "type": "formula",
+          "as": "parentFillR",
+          "expr": "data('rgb-fill')[indexof(pluck(data('rgb-fill'), 'nodeType'), 'parent')].r"
+        },
+        {
+          "type": "formula",
+          "as": "parentFillG",
+          "expr": "data('rgb-fill')[indexof(pluck(data('rgb-fill'), 'nodeType'), 'parent')].g"
+        },
+        {
+          "type": "formula",
+          "as": "parentFillB",
+          "expr": "data('rgb-fill')[indexof(pluck(data('rgb-fill'), 'nodeType'), 'parent')].b"
+        },
+        {
+          "type": "formula",
+          "as": "leafFillR",
+          "expr": "data('rgb-fill')[indexof(pluck(data('rgb-fill'), 'nodeType'), 'leaf')].r"
+        },
+        {
+          "type": "formula",
+          "as": "leafFillG",
+          "expr": "data('rgb-fill')[indexof(pluck(data('rgb-fill'), 'nodeType'), 'leaf')].g"
+        },
+        {
+          "type": "formula",
+          "as": "leafFillB",
+          "expr": "data('rgb-fill')[indexof(pluck(data('rgb-fill'), 'nodeType'), 'leaf')].b"
+        },
+        {
+          "type": "formula",
+          "as": "parentStrokeR",
+          "expr": "data('rgb-stroke')[indexof(pluck(data('rgb-stroke'), 'nodeType'), 'parent')].r"
+        },
+        {
+          "type": "formula",
+          "as": "parentStrokeG",
+          "expr": "data('rgb-stroke')[indexof(pluck(data('rgb-stroke'), 'nodeType'), 'parent')].g"
+        },
+        {
+          "type": "formula",
+          "as": "parentStrokeB",
+          "expr": "data('rgb-stroke')[indexof(pluck(data('rgb-stroke'), 'nodeType'), 'parent')].b"
+        },
+        {
+          "type": "formula",
+          "as": "leafStrokeR",
+          "expr": "data('rgb-stroke')[indexof(pluck(data('rgb-stroke'), 'nodeType'), 'leaf')].r"
+        },
+        {
+          "type": "formula",
+          "as": "leafStrokeG",
+          "expr": "data('rgb-stroke')[indexof(pluck(data('rgb-stroke'), 'nodeType'), 'leaf')].g"
+        },
+        {
+          "type": "formula",
+          "as": "leafStrokeB",
+          "expr": "data('rgb-stroke')[indexof(pluck(data('rgb-stroke'), 'nodeType'), 'leaf')].b"
+        },
+        {
+          "type": "formula",
+          "as": "fillR",
+          "expr": "drillDirection === 'down' && datum.join === 'exit' && datum.sourceNodeType === 'parent' ? lerp([datum.parentFillR, datum.leafFillR], nodeTEasedSecond) : drillDirection === 'down' && datum.join === 'enter' && datum.targetNodeType === 'leaf' ? lerp([datum.parentFillR, datum.leafFillR], nodeTEasedSecond) : drillDirection === 'up' && datum.join === 'exit' && datum.sourceNodeType === 'leaf' ? lerp([datum.leafFillR, datum.parentFillR], nodeTEasedFirst) : drillDirection === 'up' && datum.join === 'enter' && datum.targetNodeType === 'parent' ? lerp([datum.leafFillR, datum.parentFillR], nodeTEasedFirst) : (isValid(datum.sourceFill) && isValid(datum.targetFill) ? lerp([datum.sourceFill.r, datum.targetFill.r], nodeTEasedFirst) : (isValid(datum.targetFill) ? datum.targetFill.r : datum.sourceFill.r))"
+        },
+        {
+          "type": "formula",
+          "as": "fillG",
+          "expr": "drillDirection === 'down' && datum.join === 'exit' && datum.sourceNodeType === 'parent' ? lerp([datum.parentFillG, datum.leafFillG], nodeTEasedSecond) : drillDirection === 'down' && datum.join === 'enter' && datum.targetNodeType === 'leaf' ? lerp([datum.parentFillG, datum.leafFillG], nodeTEasedSecond) : drillDirection === 'up' && datum.join === 'exit' && datum.sourceNodeType === 'leaf' ? lerp([datum.leafFillG, datum.parentFillG], nodeTEasedFirst) : drillDirection === 'up' && datum.join === 'enter' && datum.targetNodeType === 'parent' ? lerp([datum.leafFillG, datum.parentFillG], nodeTEasedFirst) : (isValid(datum.sourceFill) && isValid(datum.targetFill) ? lerp([datum.sourceFill.g, datum.targetFill.g], nodeTEasedFirst) : (isValid(datum.targetFill) ? datum.targetFill.g : datum.sourceFill.g))"
+        },
+        {
+          "type": "formula",
+          "as": "fillB",
+          "expr": "drillDirection === 'down' && datum.join === 'exit' && datum.sourceNodeType === 'parent' ? lerp([datum.parentFillB, datum.leafFillB], nodeTEasedSecond) : drillDirection === 'down' && datum.join === 'enter' && datum.targetNodeType === 'leaf' ? lerp([datum.parentFillB, datum.leafFillB], nodeTEasedSecond) : drillDirection === 'up' && datum.join === 'exit' && datum.sourceNodeType === 'leaf' ? lerp([datum.leafFillB, datum.parentFillB], nodeTEasedFirst) : drillDirection === 'up' && datum.join === 'enter' && datum.targetNodeType === 'parent' ? lerp([datum.leafFillB, datum.parentFillB], nodeTEasedFirst) : (isValid(datum.sourceFill) && isValid(datum.targetFill) ? lerp([datum.sourceFill.b, datum.targetFill.b], nodeTEasedFirst) : (isValid(datum.targetFill) ? datum.targetFill.b : datum.sourceFill.b))"
+        },
+        {
+          "type": "formula",
+          "as": "strokeR",
+          "expr": "drillDirection === 'down' && datum.join === 'exit' && datum.sourceNodeType === 'parent' ? lerp([datum.parentStrokeR, datum.leafStrokeR], nodeTEasedSecond) : drillDirection === 'down' && datum.join === 'enter' && datum.targetNodeType === 'leaf' ? lerp([datum.parentStrokeR, datum.leafStrokeR], nodeTEasedSecond) : drillDirection === 'up' && datum.join === 'exit' && datum.sourceNodeType === 'leaf' ? lerp([datum.leafStrokeR, datum.parentStrokeR], nodeTEasedFirst) : drillDirection === 'up' && datum.join === 'enter' && datum.targetNodeType === 'parent' ? lerp([datum.leafStrokeR, datum.parentStrokeR], nodeTEasedFirst) : (isValid(datum.sourceStroke) && isValid(datum.targetStroke) ? lerp([datum.sourceStroke.r, datum.targetStroke.r], nodeTEasedFirst) : (isValid(datum.targetStroke) ? datum.targetStroke.r : datum.sourceStroke.r))"
+        },
+        {
+          "type": "formula",
+          "as": "strokeG",
+          "expr": "drillDirection === 'down' && datum.join === 'exit' && datum.sourceNodeType === 'parent' ? lerp([datum.parentStrokeG, datum.leafStrokeG], nodeTEasedSecond) : drillDirection === 'down' && datum.join === 'enter' && datum.targetNodeType === 'leaf' ? lerp([datum.parentStrokeG, datum.leafStrokeG], nodeTEasedSecond) : drillDirection === 'up' && datum.join === 'exit' && datum.sourceNodeType === 'leaf' ? lerp([datum.leafStrokeG, datum.parentStrokeG], nodeTEasedFirst) : drillDirection === 'up' && datum.join === 'enter' && datum.targetNodeType === 'parent' ? lerp([datum.leafStrokeG, datum.parentStrokeG], nodeTEasedFirst) : (isValid(datum.sourceStroke) && isValid(datum.targetStroke) ? lerp([datum.sourceStroke.g, datum.targetStroke.g], nodeTEasedFirst) : (isValid(datum.targetStroke) ? datum.targetStroke.g : datum.sourceStroke.g))"
+        },
+        {
+          "type": "formula",
+          "as": "strokeB",
+          "expr": "drillDirection === 'down' && datum.join === 'exit' && datum.sourceNodeType === 'parent' ? lerp([datum.parentStrokeB, datum.leafStrokeB], nodeTEasedSecond) : drillDirection === 'down' && datum.join === 'enter' && datum.targetNodeType === 'leaf' ? lerp([datum.parentStrokeB, datum.leafStrokeB], nodeTEasedSecond) : drillDirection === 'up' && datum.join === 'exit' && datum.sourceNodeType === 'leaf' ? lerp([datum.leafStrokeB, datum.parentStrokeB], nodeTEasedFirst) : drillDirection === 'up' && datum.join === 'enter' && datum.targetNodeType === 'parent' ? lerp([datum.leafStrokeB, datum.parentStrokeB], nodeTEasedFirst) : (isValid(datum.sourceStroke) && isValid(datum.targetStroke) ? lerp([datum.sourceStroke.b, datum.targetStroke.b], nodeTEasedFirst) : (isValid(datum.targetStroke) ? datum.targetStroke.b : datum.sourceStroke.b))"
+        },
+        {
+          "type": "formula",
+          "as": "fillColor",
+          "expr": "'rgb(' + round(datum.fillR) + ',' + round(datum.fillG) + ',' + round(datum.fillB) + ')'"
+        },
+        {
+          "type": "formula",
+          "as": "strokeColor",
+          "expr": "'rgb(' + round(datum.strokeR) + ',' + round(datum.strokeG) + ',' + round(datum.strokeB) + ')'"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.join === 'enter' ? datum.enteringValues.siblingSort : (datum.join === 'exit' ? datum.exitingValues.siblingSort : 0)",
+          "as": "targetSort"
+        },
+        {
+          "type": "collect",
+          "sort": {
+            "field": ["join", "targetSort"],
+            "order": ["ascending", "ascending"]
+          }
+        },
+        { "type": "formula", "expr": "scale('scaleX', 0)", "as": "xBase" },
+        {
+          "type": "formula",
+          "expr": "scale('scaleX', datum.value) - datum.xBase",
+          "as": "barWidth"
+        },
+        {
+          "type": "window",
+          "ops": ["sum"],
+          "fields": ["barWidth"],
+          "groupby": ["join"],
+          "as": ["cumBarWidth"]
+        },
+        {
+          "type": "formula",
+          "expr": "datum.xBase + datum.cumBarWidth - datum.barWidth",
+          "as": "stackX1"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.xBase + datum.cumBarWidth",
+          "as": "stackX2"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.join === 'enter' ? datum.stackX1 : datum.xBase",
+          "as": "x1StartDown"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.join === 'enter' ? datum.stackX2 : datum.xBase + datum.barWidth",
+          "as": "x2StartDown"
+        },
+        { "type": "formula", "expr": "datum.xBase", "as": "x1EndDown" },
+        {
+          "type": "formula",
+          "expr": "datum.xBase + datum.barWidth",
+          "as": "x2EndDown"
+        },
+        {
+          "type": "formula",
+          "expr": "drillDirection === 'up' && datum.join === 'enter' ? datum.xBase : (datum.join === 'enter' ? datum.stackX1 : datum.xBase)",
+          "as": "x1StartUp"
+        },
+        {
+          "type": "formula",
+          "expr": "drillDirection === 'up' && datum.join === 'enter' ? datum.xBase : (datum.join === 'enter' ? datum.stackX2 : datum.xBase + datum.barWidth)",
+          "as": "x2StartUp"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.join === 'exit' ? datum.stackX1 : datum.xBase",
+          "as": "x1EndUp"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.join === 'exit' ? datum.stackX2 : datum.xBase + datum.barWidth",
+          "as": "x2EndUp"
+        },
+        {
+          "type": "formula",
+          "expr": "drillDirection === 'down' ? datum.x1StartDown : datum.x1StartUp",
+          "as": "x1Start"
+        },
+        {
+          "type": "formula",
+          "expr": "drillDirection === 'down' ? datum.x2StartDown : datum.x2StartUp",
+          "as": "x2Start"
+        },
+        {
+          "type": "formula",
+          "expr": "drillDirection === 'down' ? datum.x1EndDown : datum.x1EndUp",
+          "as": "x1End"
+        },
+        {
+          "type": "formula",
+          "expr": "drillDirection === 'down' ? datum.x2EndDown : datum.x2EndUp",
+          "as": "x2End"
+        },
+        {
+          "type": "formula",
+          "expr": "drillDirection === 'down' ? lerp([datum.x1Start, datum.x1End], nodeTEasedSecond) : lerp([datum.x1Start, datum.x1End], nodeTEasedFirst)",
+          "as": "x1"
+        },
+        {
+          "type": "formula",
+          "expr": "drillDirection === 'up' && datum.join === 'enter' ? lerp([datum.xBase, datum.x2End], nodeTEasedFirst) : (drillDirection === 'down' ? lerp([datum.x2Start, datum.x2End], nodeTEasedSecond) : lerp([datum.x2Start, datum.x2End], nodeTEasedFirst))",
+          "as": "x2"
+        },
+        {
+          "type": "formula",
+          "expr": "isSortChange && datum.parentId === currentNodeId ? lerp([sortOrderDescending ? datum.nodeY1Ascending : datum.nodeY1Descending, sortOrderDescending ? datum.nodeY1Descending : datum.nodeY1Ascending], nodeTEasedFirst) : (drillDirection === 'down' && datum.join === 'enter' ? lerp([datum.parentY1, datum.nodeY1], nodeTEasedFirst) : (datum.join === 'exit' ? lerp([datum.nodeY1, datum.parentY1], nodeTEasedSecond) : datum.nodeY1))",
+          "as": "y1"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.y1 + configRow.rowHeight",
+          "as": "y2"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.y1+configRow.rowHeight*(0.225)",
+          "as": "y1WithPadding"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.y2-configRow.rowHeight*(0.225)",
+          "as": "y2WithPadding"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.join === 'initial' ? 1 : datum.join === 'enter' ? (drillDirection === 'down' ? lerp([0,1], nodeTEasedFirst) : lerp([0,1], nodeTEasedSecond)) : (drillDirection === 'down' ? lerp([1,0], nodeTEasedFirst) : lerp([1,0], nodeTEasedSecond))",
+          "as": "barOpacity"
+        },
+        { "type": "formula", "expr": "datum.barOpacity", "as": "labelOpacity" },
+        {
+          "type": "formula",
+          "expr": "datum.join === 'enter' && drillDirection === 'up' ? data('previous-child-nodes')[0].parentId === datum.id ? nodeTEasedSecond === 1 ? 1 : 0 : datum.barOpacity : datum.barOpacity",
+          "as": "barOpacity"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.join === 'enter' && drillDirection === 'down' ? 1 : datum.barOpacity",
+          "as": "barOpacity"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.join === 'exit' && drillDirection === 'up' ? nodeTEasedSecond === 1 ? 0 : 1 : datum.barOpacity",
+          "as": "barOpacity"
+        }
+      ]
+    }
+  ],
+  "config": { "text": { "font": "Segoe UI" } }
+}
