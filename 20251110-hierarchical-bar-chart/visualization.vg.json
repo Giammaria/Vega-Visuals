@@ -1,6 +1,6 @@
 {
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
   "usermeta": {
-    "$schema": "https://vega.github.io/schema/vega/v6.json",
     "version": "01.01",
     "developedBy": "Madison Giammaria",
     "gitHub": "https://github.com/Giammaria",
