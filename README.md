@@ -7,13 +7,24 @@ This is a growing compilation of visuals that I have created in [Vega](https://v
 
 ‎
 
-## Hierarchical Bar Chart <small><sup><em><code>New!</code></em></sup></small>
+## Hierarchical Gantt (v2.0) <small><sup><em><code>New!</code></em></sup></small>
+
+![Vega-Visuals](20251222-hierarchical-gantt-v2/artifacts/screenrecording.gif)
+This Hierarchical Gantt is a production-ready, expand/collapse timeline visual built in Vega that works in Power BI (Deneb) or any web page via vega-embed. It lets report authors explore complex work breakdown structures the way people actually think: parents with nested children, sorted at the sibling level (so hierarchy is never broken), with smooth animations that preserve context as you sort, expand, and collapse. Out of the box it includes optional dependency lines, optional bar labels, a details panel with configurable columns, and intuitive controls for pan/zoom and scrolling, and the best part is that adding new columns or tooltip fields is mostly “data-driven” configuration rather than rewriting Vega, making it approachable for teams who want a modern, interactive Gantt without building a custom web app.
+|Vega|Power BI|
+|-|-|
+|[Open the Chart with the Vega Editor](https://vega.github.io/editor/#/gist/deb5e89c2a88c8af6968fd6e6077558b/spec.json/view)|[Open the Chart in Power BI](https://app.powerbi.com/view?r=eyJrIjoiYjlkZjBjZjYtZmFjZC00MjdmLWFhNWUtZjU4M2MxMGNhNGQwIiwidCI6ImRmODY3OWNkLWE4MGUtNDVkOC05OWFjLWM4M2VkN2ZmOTVhMCJ9&chromeless=true)
+|[Open the Vega Specification](20251222-hierarchical-gantt-v2/visualization.vg.json)|[Download the .pbix](<20251222-hierarchical-gantt-v2/Hierarchical Gantt v2.0.pbix>)|
+
+‎
+
+## Hierarchical Bar Chart
 
 ![Vega-Visuals](20251110-hierarchical-bar-chart/artifacts/screenrecording.gif)
 This chart is an animated, drillable hierarchical horizontal bar view. The user provides a flat table of {id, parentId, label, value?}, and it turns that into a tree you can explore one level at a time. At any moment it shows “the children of the node the user is looking at” as horizontal bars, ordered by a user-toggleable sort. When you drill down or up, the bars animate so you can see what changed.
 |Vega|Power BI|
 |-|-|
-|[Open the Chart with the Vega Editor](https://vega.github.io/editor/#/gist/891d868846eab2342ffa256626f047ce/spec.json/view)|[Open the Chart in Power BI](https://app.powerbi.com/view?r=eyJrIjoiYjMzNWZkNmItY2Y5Yi00YmYzLWEyYmQtMmZiOTk3ZTAwZmM5IiwidCI6ImRmODY3OWNkLWE4MGUtNDVkOC05OWFjLWM4M2VkN2ZmOTVhMCJ9&chromeless=true)
+|[Open the Chart with the Vega Editor](https://vega.github.io/editor/#/gist/deb5e89c2a88c8af6968fd6e6077558b/spec.json/view)|[Open the Chart in Power BI](https://app.powerbi.com/view?r=eyJrIjoiYjMzNWZkNmItY2Y5Yi00YmYzLWEyYmQtMmZiOTk3ZTAwZmM5IiwidCI6ImRmODY3OWNkLWE4MGUtNDVkOC05OWFjLWM4M2VkN2ZmOTVhMCJ9&chromeless=true)
 |[Open the Vega Specification](20251110-hierarchical-bar-chart/visualization.vg.json)|[Download the .pbix](<20251110-hierarchical-bar-chart/Hierarchical Bar Chart v1.0.pbix>)|
 
 ‎
@@ -29,7 +40,7 @@ A recreation of the [macrodata refinement](https://severance.wiki/macrodata_refi
 
 ‎
 
-## Hierarchical Gantt
+## Hierarchical Gantt (v1.0)
 
 ![Vega-Visuals](20240724-hierarchical-gantt-chart/artifacts/screenshot.png)
 A hierarchical Gantt visual heavily inspired by [Davide Bacci's Gantt](https://github.com/PBI-David/Deneb-Showcase?tab=readme-ov-file#gantt-chart). This Gantt takes a [hierarchical (tree) data structure](https://medium.com/@pixelprofits/data-structures-deep-dive-4-8-trees-hierarchical-data-representation-f7deba97e294), allowing for staggered parent-child relationships. The user is able to explore the hierarchy at different levels, as well as different date granularities. Various controls and shortcut capabilities have been added to facilitate exploration.
