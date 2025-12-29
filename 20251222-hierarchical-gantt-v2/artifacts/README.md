@@ -1,6 +1,6 @@
 # Hierarchical Gantt v2.0 (Vega v6) - README
 
-This repo/spec contains a **hierarchical (tree) Gantt chart** built in **Vega v6**, designed to work well both:
+This [repo](/20251222-hierarchical-gantt-v2)/[spec](/20251222-hierarchical-gantt-v2/visualization.vg.json) contains a **hierarchical (tree) Gantt chart** built in **Vega v6**, designed to work well both:
 
 - **Inside Power BI / Deneb** (as a custom Vega visual), and
 - **Outside Power BI** (embedded on a web page with vega-embed).
@@ -17,7 +17,7 @@ The chart supports **expand/collapse**, **animated sorting (sibling-level)**, **
 
 ### Sorting
 
-- **Column-header sorting** with a 3-state cycle:**ascending → descending → default/original (clears sort)**. This is driven by sortHistory → sortField + sortOrder.
+- **Column-header sorting** with a 3-state cycle: **ascending → descending → default/original (clears sort)**. This is driven by sortHistory → sortField + sortOrder.
 - Sorting is **sibling-level** and preserves hierarchy order via a **computed “sort path”** (so children remain under parents, and preorder traversal stays valid).
 - Sorting is designed to be **dynamic**: it can sort by any field present in the dataset because it accesses datum\[sortField\] and normalizes to sortKey.
 
