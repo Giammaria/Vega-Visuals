@@ -11,6 +11,9 @@ This is a growing compilation of visuals that I have created in [Vega](https://v
 
 ![Vega-Visuals](20251222-hierarchical-gantt-v2/artifacts/screenrecording.gif)
 This Hierarchical Gantt is a production-ready, expand/collapse timeline visual built in Vega that works in Power BI (Deneb) or any web page via vega-embed. It lets report authors explore complex work breakdown structures the way people actually think: parents with nested children, sorted at the sibling level (so hierarchy is never broken), with smooth animations that preserve context as you sort, expand, and collapse. Out of the box it includes optional dependency lines, optional bar labels, a details panel with configurable columns, and intuitive controls for pan/zoom and scrolling, and the best part is that adding new columns or tooltip fields is mostly “data-driven” configuration rather than rewriting Vega, making it approachable for teams who want a modern, interactive Gantt without building a custom web app.
+
+**📖 [README](20251222-hierarchical-gantt-v2/artifacts/README.md)**
+
 |Vega|Power BI|
 |-|-|
 |[Open the Chart with the Vega Editor](https://vega.github.io/editor/#/gist/deb5e89c2a88c8af6968fd6e6077558b/spec.json/view)|[Open the Chart in Power BI](https://app.powerbi.com/view?r=eyJrIjoiYjlkZjBjZjYtZmFjZC00MjdmLWFhNWUtZjU4M2MxMGNhNGQwIiwidCI6ImRmODY3OWNkLWE4MGUtNDVkOC05OWFjLWM4M2VkN2ZmOTVhMCJ9&chromeless=true)
