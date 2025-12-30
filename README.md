@@ -16,7 +16,7 @@ This Hierarchical Gantt is a production-ready, expand/collapse timeline visual b
 
 |Vega|Power BI|
 |-|-|
-|[Open the Chart with the Vega Editor](https://vega.github.io/editor/#/gist/deb5e89c2a88c8af6968fd6e6077558b/spec.json/view)|[Open the Chart in Power BI](https://app.powerbi.com/view?r=eyJrIjoiYjlkZjBjZjYtZmFjZC00MjdmLWFhNWUtZjU4M2MxMGNhNGQwIiwidCI6ImRmODY3OWNkLWE4MGUtNDVkOC05OWFjLWM4M2VkN2ZmOTVhMCJ9&chromeless=true)
+|[Open the Chart with the Vega Editor](https://vega.github.io/editor/#/gist/f1b07a1bb669783b0648cbf91627674d/spec.json/view)|[Open the Chart in Power BI](https://app.powerbi.com/view?r=eyJrIjoiYjlkZjBjZjYtZmFjZC00MjdmLWFhNWUtZjU4M2MxMGNhNGQwIiwidCI6ImRmODY3OWNkLWE4MGUtNDVkOC05OWFjLWM4M2VkN2ZmOTVhMCJ9&chromeless=true)
 |[Open the Vega Specification](20251222-hierarchical-gantt-v2/visualization.vg.json)|[Download the .pbix](<20251222-hierarchical-gantt-v2/Hierarchical Gantt v2.0.pbix>)|
 
 ‎

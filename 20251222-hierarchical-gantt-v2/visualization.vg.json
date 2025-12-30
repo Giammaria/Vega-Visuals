@@ -1,7 +1,7 @@
 {
   "$schema": "https://vega.github.io/schema/vega/v6.json",
   "usermeta": {
-    "version": "02.01",
+    "version": "02.02",
     "developedBy": "Madison Giammaria",
     "gitHub": "https://github.com/Giammaria",
     "linkedIn": "https://www.linkedin.com/in/madison-giammaria-58463b33",
@@ -1066,6 +1066,17 @@
           "update": "now()"
         },
         {"events": "@settings-backdrop:pointerup{0,0}", "update": "now()"}
+      ]
+    },
+    {
+      "name": "initStamp",
+      "description": "The very initial timer tick. Used to trigger initialization for the 'hierarchy-last-visible-target' dataset and the 'hierarchy-pre-animation' dataset.",
+      "value": null,
+      "on": [
+        {
+          "events": {"type": "timer"},
+          "update": "initStamp==null ? timer : initStamp"
+        }
       ]
     }
   ],
@@ -5152,7 +5163,7 @@
           "insert": "{data: preLastClickedNodeTargets, timestamp: now(), source: 'hierarchy-visible-target'}"
         },
         {
-          "trigger": "timer < (initialTimestamp+500)",
+          "trigger": "isValid(initStamp) && timer==initStamp",
           "remove": false,
           "insert": "{data: data('hierarchy-initial'), timestamp: now(), source: 'hierarchy-initial'}"
         }
@@ -5484,7 +5495,7 @@
           "remove": true
         },
         {
-          "trigger": "timer < (initialTimestamp+500)",
+          "trigger": "isValid(initStamp) && timer==initStamp",
           "remove": true,
           "insert": "data('hierarchy-initial')"
         }
